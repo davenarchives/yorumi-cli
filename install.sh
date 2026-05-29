@@ -24,57 +24,87 @@ GREEN='\033[0;32m'
 MAGENTA='\033[0;35m'
 WHITE='\033[1;37m'
 
-write_success() { printf "  ${BG_GREEN} success ${RST}  %s\n" "$1"; }
-write_info()    { printf "  ${BG_CYAN} info ${RST}  %s\n" "$1"; }
-write_warn()    { printf "  ${BG_YELLOW} warning ${RST}  %s\n" "$1"; }
-write_err()     { printf "  ${BG_RED} error ${RST}  %s\n" "$1"; }
-write_note()    { printf "  ${BG_GRAY} note ${RST}  %s\n" "$1"; }
+write_label() {
+    clear_progress_line
+    printf "  %b %s %b  %s\n" "$2" "$1" "$RST" "$3"
+    redraw_progress_line
+}
+
+write_success() { write_label "success" "$BG_GREEN" "$1"; }
+write_info()    { write_label "info" "$BG_CYAN" "$1"; }
+write_warn()    { write_label "warning" "$BG_YELLOW" "$1"; }
+write_err()     { write_label "error" "$BG_RED" "$1"; }
+write_note()    { write_label "note" "$BG_GRAY" "$1"; }
 
 write_header() {
+    clear_progress_line
     echo ""
     printf "  ${WHITE}%s${RST}\n" "$1"
+    redraw_progress_line
 }
 
 # ── Progress bar ───────────────────────────────────────────────────
 
 TOTAL_STEPS=4
 CURRENT_STEP=0
-CURRENT_FILLED=0
-BAR_WIDTH=40
+CURRENT_UNITS=0
+PROGRESS_UNITS=100
+PROGRESS_ACTIVE=0
+PROGRESS_LABEL=""
+
+clear_progress_line() {
+    if [ "$PROGRESS_ACTIVE" -eq 1 ]; then
+        printf "\r\033[2K"
+    fi
+}
+
+redraw_progress_line() {
+    if [ "$PROGRESS_ACTIVE" -eq 1 ]; then
+        draw_progress "$CURRENT_UNITS" "$PROGRESS_LABEL"
+    fi
+}
 
 draw_progress() {
-    local filled="$1"
+    local units="$1"
     local label="$2"
-    local pct=$((filled * 100 / BAR_WIDTH))
-    local empty=$((BAR_WIDTH - filled))
+    PROGRESS_ACTIVE=1
+    PROGRESS_LABEL="$label"
+    local pct=$((units * 100 / PROGRESS_UNITS))
+    local columns="${COLUMNS:-100}"
+    local label_text=" | $label"
+    local bar_width=$((columns - ${#label_text} - 14))
+    if [ "$bar_width" -gt 34 ]; then bar_width=34; fi
+    if [ "$bar_width" -lt 12 ]; then bar_width=12; fi
+    local filled=$((bar_width * units / PROGRESS_UNITS))
+    local empty=$((bar_width - filled))
     local bar=""
     for ((i = 0; i < filled; i++)); do bar+="█"; done
-    for ((i = 0; i < empty; i++));  do bar+="░"; done
-    printf "\r\033[2K  [%s] ${GREEN}%3d%%${RST} | %s" "$bar" "$pct" "$label"
+    for ((i = 0; i < empty; i++));  do bar+="-"; done
+    printf "\r\033[2K  [%s] ${GREEN}%3d%%${RST}%s" "$bar" "$pct" "$label_text"
 }
 
 complete_progress_step() {
     CURRENT_STEP=$((CURRENT_STEP + 1))
-    local target=$((BAR_WIDTH * CURRENT_STEP / TOTAL_STEPS))
-    while [ "$CURRENT_FILLED" -lt "$target" ]; do
-        CURRENT_FILLED=$((CURRENT_FILLED + 1))
-        draw_progress "$CURRENT_FILLED" "$1"
+    local target=$((PROGRESS_UNITS * CURRENT_STEP / TOTAL_STEPS))
+    while [ "$CURRENT_UNITS" -lt "$target" ]; do
+        CURRENT_UNITS=$((CURRENT_UNITS + 1))
+        draw_progress "$CURRENT_UNITS" "$1"
         sleep 0.018
     done
-    printf "\n"
+    draw_progress "$CURRENT_UNITS" "$1"
 }
 
 run_progress_in() {
     local label="$1"
     local cwd="$2"
     shift 2
-    local target=$((BAR_WIDTH * (CURRENT_STEP + 1) / TOTAL_STEPS))
+    local target=$((PROGRESS_UNITS * (CURRENT_STEP + 1) / TOTAL_STEPS))
     local out_file
     local err_file
     out_file="$(mktemp)"
     err_file="$(mktemp)"
 
-    draw_progress "$CURRENT_FILLED" "$label"
+    draw_progress "$CURRENT_UNITS" "$label"
     (
         cd "$cwd"
         "$@"
@@ -82,15 +112,15 @@ run_progress_in() {
     local pid=$!
 
     while kill -0 "$pid" 2> /dev/null; do
-        if [ "$CURRENT_FILLED" -lt $((target - 1)) ]; then
-            CURRENT_FILLED=$((CURRENT_FILLED + 1))
+        if [ "$CURRENT_UNITS" -lt $((target - 1)) ]; then
+            CURRENT_UNITS=$((CURRENT_UNITS + 1))
         fi
-        draw_progress "$CURRENT_FILLED" "$label"
+        draw_progress "$CURRENT_UNITS" "$label"
         sleep 0.09
     done
 
     if ! wait "$pid"; then
-        printf "\n"
+        clear_progress_line
         write_err "$label failed."
         if [ -s "$err_file" ]; then
             cat "$err_file"
@@ -167,6 +197,8 @@ write_success "CLI globally linked"
 # ── Done ──────────────────────────────────────────────────────────
 
 complete_progress_step "Complete"
+clear_progress_line
+PROGRESS_ACTIVE=0
 echo ""
 write_success "Yorumi CLI installed successfully!"
 echo ""

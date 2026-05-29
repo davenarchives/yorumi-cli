@@ -10,8 +10,10 @@ $repoDir = Join-Path $installRoot "repo"
 # ── Pretty output helpers ──────────────────────────────────────────
 
 function Write-Label($label, $color, $message) {
+    Clear-ProgressLine
     Write-Host "  $label  " -ForegroundColor Black -BackgroundColor $color -NoNewline
     Write-Host "  $message"
+    Redraw-ProgressLine
 }
 
 function Write-Success($message) { Write-Label "success" "Green"   $message }
@@ -21,41 +23,67 @@ function Write-Err($message)     { Write-Label "error"   "Red"     $message }
 function Write-Note($message)    { Write-Label "note"    "DarkGray" $message }
 
 function Write-Header($message) {
+    Clear-ProgressLine
     Write-Host ""
     Write-Host $message -ForegroundColor White
+    Redraw-ProgressLine
 }
 
 # ── Progress bar ───────────────────────────────────────────────────
 
 $script:totalSteps = 4
 $script:currentStep = 0
-$script:currentFilled = 0
-$script:barWidth = 40
+$script:currentUnits = 0
+$script:progressUnits = 100
+$script:escape = [char]27
+$script:progressActive = $false
+$script:progressLabel = ""
 
-function Draw-Progress($filled, $label) {
-    $pct = [math]::Floor(($filled / $script:barWidth) * 100)
-    $empty = $script:barWidth - $filled
-    $bar = ("$([char]0x2588)" * $filled) + ("$([char]0x2591)" * $empty)
+function Clear-ProgressLine {
+    if ($script:progressActive) {
+        [Console]::Write("`r$($script:escape)[2K")
+    }
+}
 
-    Write-Host "`r  [$bar] " -NoNewline
-    Write-Host ("{0,3}%" -f $pct) -ForegroundColor Green -NoNewline
-    Write-Host " | $label    " -NoNewline
+function Redraw-ProgressLine {
+    if ($script:progressActive) {
+        Draw-Progress $script:currentUnits $script:progressLabel
+    }
+}
+
+function Draw-Progress($units, $label) {
+    $script:progressActive = $true
+    $script:progressLabel = $label
+    $pct = [math]::Floor(($units / $script:progressUnits) * 100)
+    $columns = 100
+    try {
+        if ([Console]::WindowWidth -gt 0) { $columns = [Console]::WindowWidth }
+    } catch {}
+
+    $labelText = " | $label"
+    $barWidth = [Math]::Min(34, [Math]::Max(12, $columns - $labelText.Length - 14))
+    $filled = [math]::Floor($barWidth * $units / $script:progressUnits)
+    $empty = $barWidth - $filled
+    $bar = ("$([char]0x2588)" * $filled) + ("-" * $empty)
+    $line = "  [$bar] $($script:escape)[32m$('{0,3}%' -f $pct)$($script:escape)[0m$labelText"
+
+    [Console]::Write("`r$($script:escape)[2K$line")
 }
 
 function Complete-ProgressStep($label) {
     $script:currentStep++
-    $target = [math]::Floor($script:barWidth * $script:currentStep / $script:totalSteps)
-    while ($script:currentFilled -lt $target) {
-        $script:currentFilled++
-        Draw-Progress $script:currentFilled $label
+    $target = [math]::Floor($script:progressUnits * $script:currentStep / $script:totalSteps)
+    while ($script:currentUnits -lt $target) {
+        $script:currentUnits++
+        Draw-Progress $script:currentUnits $label
         Start-Sleep -Milliseconds 18
     }
-    Write-Host ""
+    Draw-Progress $script:currentUnits $label
 }
 
 function Invoke-ProgressCommand($label, $file, [string[]]$arguments, $workingDirectory) {
-    Draw-Progress $script:currentFilled $label
-    $target = [math]::Floor($script:barWidth * ($script:currentStep + 1) / $script:totalSteps)
+    Draw-Progress $script:currentUnits $label
+    $target = [math]::Floor($script:progressUnits * ($script:currentStep + 1) / $script:totalSteps)
 
     try {
         $job = Start-Job -ScriptBlock {
@@ -69,16 +97,16 @@ function Invoke-ProgressCommand($label, $file, [string[]]$arguments, $workingDir
         } -ArgumentList $file, $arguments, $workingDirectory
 
         while ($job.State -eq "Running") {
-            if ($script:currentFilled -lt ($target - 1)) {
-                $script:currentFilled++
+            if ($script:currentUnits -lt ($target - 1)) {
+                $script:currentUnits++
             }
-            Draw-Progress $script:currentFilled $label
+            Draw-Progress $script:currentUnits $label
             Start-Sleep -Milliseconds 90
         }
 
         $details = Receive-Job $job 2>&1 | Out-String
         if ($job.State -ne "Completed") {
-            Write-Host ""
+            Clear-ProgressLine
             Write-Err "$label failed."
             if ($details) { Write-Host $details.Trim() }
             throw "$label failed"
@@ -159,6 +187,8 @@ Write-Success "CLI globally linked"
 # ── Done ──────────────────────────────────────────────────────────
 
 Complete-ProgressStep "Complete"
+Clear-ProgressLine
+$script:progressActive = $false
 Write-Host ""
 Write-Success "Yorumi CLI installed successfully!"
 Write-Host ""
