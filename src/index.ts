@@ -176,7 +176,7 @@ Options:
   --api-base <url>         Yorumi API URL, defaults to https://yorumi-sigma.vercel.app/api
   --size <WxH>             Player window size, defaults to 960x540
   --print-url              Print the selected stream URL instead of launching mpv
-  -d, --direct             Play the stream directly in mpv without Yorumi's proxy
+  -d, --direct             Kept for compatibility; mpv playback already uses direct streams
   -u, --update             Update Yorumi CLI and its dependencies
   -h, --help               Show this help
 `);
@@ -344,7 +344,18 @@ const getEpisodes = (apiBase: string, animeSession: string) => {
   return apiGet<EpisodesPayload>(apiBase, '/scraper/episodes', { session: animeSession });
 };
 
-const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string) => {
+const getStreamReferer = (stream?: StreamLink) => {
+  const streamUrl = String(stream?.url || '').trim();
+  try {
+    const parsed = new URL(streamUrl);
+    if (/^([^/]+\.)?kwik\./i.test(parsed.host)) return `${parsed.origin}/`;
+  } catch {
+    // Fall back to AnimePahe below.
+  }
+  return 'https://animepahe.pw/';
+};
+
+const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string, referer: string) => {
   const playerCommand = await resolvePlayerCommand(player);
   if (!playerCommand) {
     console.error(`${player} was not found, so no media-player popup can be opened.`);
@@ -355,6 +366,7 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
   }
 
   const args = [
+    '--no-ytdl',
     '--force-window=yes',
     '--fullscreen=no',
     `--geometry=${size}+50%+50%`,
@@ -362,8 +374,8 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
     '--keepaspect=yes',
     `--title=${title}`,
     '--msg-level=ffmpeg/demuxer=info,demux=info,cplayer=info',
-    '--referrer=https://animepahe.pw/',
-    '--http-header-fields=Referer: https://animepahe.pw/',
+    `--referrer=${referer}`,
+    `--http-header-fields=Referer: ${referer}`,
     ...urls,
   ];
   const child = spawn(playerCommand, args, {
@@ -395,13 +407,13 @@ const resolveEpisodeStreamUrl = async (
   anime: AnimeSearchResult,
   episode: Episode,
   apiBase: string,
-  directPlay: boolean,
+  _directPlay: boolean,
 ) => {
   console.log(`Resolving playable stream for episode ${episode.episodeNumber}...`);
   return await apiGet<PlayableStreamPayload>(apiBase, '/scraper/playable-stream', {
     anime_session: anime.session,
     ep_session: episode.session,
-    direct: directPlay ? 1 : undefined,
+    direct: 1,
   });
 };
 
@@ -547,8 +559,9 @@ const main = async () => {
     return;
   }
 
+  const referer = getStreamReferer(firstStream);
   console.log(`Opening ${title} in ${options.player} (${firstStream?.quality || 'unknown'}p ${normalizeAudio(firstStream?.audio).toUpperCase()})...`);
-  await playInMediaPlayer(streamUrls, options.player, title, options.windowSize);
+  await playInMediaPlayer(streamUrls, options.player, title, options.windowSize, referer);
 };
 
 main()
