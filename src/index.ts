@@ -15,6 +15,7 @@ interface CliOptions {
   player: string;
   windowSize: string;
   printUrl: boolean;
+  directPlay: boolean;
 }
 
 const rl = createInterface({ input, output });
@@ -27,6 +28,7 @@ const parseArgs = (argv: string[]): CliOptions => {
     player: String(process.env.YORUMI_PLAYER || 'mpv'),
     windowSize: String(process.env.YORUMI_PLAYER_SIZE || '960x540'),
     printUrl: false,
+    directPlay: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -79,6 +81,11 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
+    if (arg === '--direct' || arg === '-d') {
+      options.directPlay = true;
+      continue;
+    }
+
     queryParts.push(arg);
   }
 
@@ -126,6 +133,7 @@ Options:
   --api-base <url>         Yorumi API URL, defaults to http://localhost:3001/api
   --size <WxH>             Player window size, defaults to 960x540
   --print-url              Print the selected stream URL instead of launching mpv
+  -d, --direct             Play the stream directly in mpv without the backend proxy
   -h, --help               Show this help
 `);
 };
@@ -306,6 +314,7 @@ const resolveEpisodeStreamUrl = async (
   anime: AnimeSearchResult,
   episode: Episode,
   apiBase: string,
+  directPlay: boolean,
 ) => {
   console.log(`Fetching streams for episode ${episode.episodeNumber}...`);
   const streams = await scraper.getLinks(anime.session, episode.session);
@@ -316,7 +325,7 @@ const resolveEpisodeStreamUrl = async (
   const directStreamUrl = await scraper.resolveStreamUrl(stream);
   return {
     stream,
-    url: buildYorumiProxyUrl(apiBase, directStreamUrl),
+    url: directPlay ? directStreamUrl : buildYorumiProxyUrl(apiBase, directStreamUrl),
   };
 };
 
@@ -351,7 +360,7 @@ const main = async () => {
 
     const resolved = [];
     for (const episode of selectedEpisodes) {
-      resolved.push(await resolveEpisodeStreamUrl(scraper, anime, episode, options.apiBase));
+      resolved.push(await resolveEpisodeStreamUrl(scraper, anime, episode, options.apiBase, options.directPlay));
     }
 
     const streamUrls = resolved.map((item) => item.url);
