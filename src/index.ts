@@ -366,16 +366,29 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
     '--http-header-fields=Referer: https://animepahe.pw/',
     ...urls,
   ];
-  const child = spawn(playerCommand, args, { stdio: 'inherit' });
+  const child = spawn(playerCommand, args, {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: false,
+  });
+
   await new Promise<void>((resolve, reject) => {
-    child.on('error', reject);
-    child.on('exit', (code) => {
+    const timer = setTimeout(resolve, 1200);
+    child.once('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once('exit', (code) => {
+      clearTimeout(timer);
       if (code && code !== 0) {
-        console.error(`${playerCommand} exited with code ${code}.`);
+        reject(new Error(`${playerCommand} exited with code ${code}.`));
+        return;
       }
       resolve();
     });
   });
+
+  child.unref();
 };
 
 const resolveEpisodeStreamUrl = async (
