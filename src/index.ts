@@ -112,19 +112,15 @@ Yorumi CLI - terminal anime watcher powered by Yorumi + mpv
 Usage:
   yorumi-cli [anime title] [options]
 
-Quick Start:
-  1. Start Yorumi backend:
-     npm run dev --prefix backend
-
-  2. Run the CLI:
-     yorumi-cli
-     yorumi-cli "Frieren"
-     yorumi-cli -e 1 "Frieren"
-     yorumi-cli -r "1-5" "Naruto"
-
 Install Requirements:
   winget install --id shinchiro.mpv -e
   winget install junegunn.fzf
+
+Quick Start:
+  yorumi-cli
+  yorumi-cli "Frieren"
+  yorumi-cli -e 1 "Frieren"
+  yorumi-cli -r "1-5" "Naruto"
 
 Examples:
   yorumi-cli "One Piece"
