@@ -1,5 +1,11 @@
 # Yorumi CLI
 
+```text
+▄▄ ▄▄  ▄▄▄  ▄▄▄▄  ▄▄ ▄▄ ▄▄   ▄▄ ▄▄      ▄▄▄▄ ▄▄    ▄▄
+▀███▀ ██▀██ ██▄█▄ ██ ██ ██▀▄▀██ ██ ▄▄▄ ██▀▀▀ ██    ██
+  █   ▀███▀ ██ ██ ▀███▀ ██   ██ ██     ▀████ ██▄▄▄ ██
+```
+
 Tiny terminal anime watcher using Yorumi's AnimePahe scraper logic and `mpv` for playback.
 
 ## Usage

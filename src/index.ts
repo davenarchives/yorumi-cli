@@ -88,10 +88,35 @@ const parseArgs = (argv: string[]): CliOptions => {
 
 const printHelp = () => {
   console.log(`
-Yorumi CLI
+▄▄ ▄▄  ▄▄▄  ▄▄▄▄  ▄▄ ▄▄ ▄▄   ▄▄ ▄▄      ▄▄▄▄ ▄▄    ▄▄
+▀███▀ ██▀██ ██▄█▄ ██ ██ ██▀▄▀██ ██ ▄▄▄ ██▀▀▀ ██    ██
+  █   ▀███▀ ██ ██ ▀███▀ ██   ██ ██     ▀████ ██▄▄▄ ██
+
+Yorumi CLI - terminal anime watcher powered by Yorumi + mpv
 
 Usage:
   yorumi-cli [anime title] [options]
+
+Quick Start:
+  1. Start Yorumi backend:
+     npm run dev --prefix backend
+
+  2. Run the CLI:
+     yorumi-cli
+     yorumi-cli "Frieren"
+     yorumi-cli -e 1 "Frieren"
+     yorumi-cli -r "1-5" "Naruto"
+
+Install Requirements:
+  winget install --id shinchiro.mpv -e
+  winget install junegunn.fzf
+
+Examples:
+  yorumi-cli "One Piece"
+  yorumi-cli --episode 1 "Frieren"
+  yorumi-cli --range "1-5" "Naruto"
+  yorumi-cli "Frieren" --size 854x480
+  yorumi-cli "Frieren" --print-url
 
 Options:
   -e, --episode <number>   Pick an episode without prompting
