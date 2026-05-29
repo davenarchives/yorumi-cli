@@ -4,6 +4,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
+import { join } from 'node:path';
 import { AnimePaheScraper, type AnimeSearchResult, type Episode, type StreamLink } from '../../backend/src/scraper/animepahe.js';
 
 interface CliOptions {
@@ -16,6 +17,7 @@ interface CliOptions {
   windowSize: string;
   printUrl: boolean;
   directPlay: boolean;
+  update: boolean;
 }
 
 const rl = createInterface({ input, output });
@@ -29,6 +31,7 @@ const parseArgs = (argv: string[]): CliOptions => {
     windowSize: String(process.env.YORUMI_PLAYER_SIZE || '960x540'),
     printUrl: false,
     directPlay: false,
+    update: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -86,6 +89,11 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
+    if (arg === '--update' || arg === '-u') {
+      options.update = true;
+      continue;
+    }
+
     queryParts.push(arg);
   }
 
@@ -134,6 +142,7 @@ Options:
   --size <WxH>             Player window size, defaults to 960x540
   --print-url              Print the selected stream URL instead of launching mpv
   -d, --direct             Play the stream directly in mpv without the backend proxy
+  -u, --update             Update Yorumi CLI and its dependencies
   -h, --help               Show this help
 `);
 };
@@ -329,8 +338,50 @@ const resolveEpisodeStreamUrl = async (
   };
 };
 
+const updateYorumiCli = () => {
+  const installRoot = join(process.env.LOCALAPPDATA || process.env.HOME || '', 'YorumiCLI');
+  const repoDir = join(installRoot, 'repo');
+  const yorumiDir = join(installRoot, 'yorumi');
+
+  if (!existsSync(repoDir)) {
+    console.error('YorumiCLI installation not found at ' + installRoot);
+    console.error('Please run git pull manually in your installation folder.');
+    return;
+  }
+
+  console.log('Updating Yorumi CLI...');
+  const repoPull = spawnSync('git', ['pull', '--ff-only'], { cwd: repoDir, stdio: 'inherit' });
+  if (repoPull.error || repoPull.status !== 0) {
+    console.error('Failed to update Yorumi CLI repo.');
+  }
+
+  if (existsSync(yorumiDir)) {
+    console.log('\\nUpdating Yorumi Backend...');
+    const yorumiPull = spawnSync('git', ['pull', '--ff-only'], { cwd: yorumiDir, stdio: 'inherit' });
+    if (yorumiPull.error || yorumiPull.status !== 0) {
+      console.error('Failed to update Yorumi Backend repo.');
+    }
+  }
+
+  console.log('\\nInstalling CLI dependencies...');
+  spawnSync('npm', ['install'], { cwd: repoDir, stdio: 'inherit' });
+
+  if (existsSync(join(installRoot, 'backend'))) {
+    console.log('\\nInstalling Backend dependencies...');
+    spawnSync('npm', ['install'], { cwd: join(installRoot, 'backend'), stdio: 'inherit' });
+  }
+
+  console.log('\\nUpdate complete!');
+};
+
 const main = async () => {
   const options = parseArgs(process.argv.slice(2));
+
+  if (options.update) {
+    updateYorumiCli();
+    return;
+  }
+
   const query = options.query || await ask('Search anime: ');
   if (!query) {
     printHelp();
