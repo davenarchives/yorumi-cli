@@ -48,10 +48,9 @@ npm link
 yorumi-cli
 ```
 
-Install `mpv` for the media player popup behavior, then reopen your terminal so PATH refreshes. The CLI uses `https://yorumi-sigma.vercel.app/api` by default.
+On Windows, the PowerShell installer attempts to install `mpv` with Winget when it is missing. The CLI uses `https://yorumi-sigma.vercel.app/api` by default.
 
 ```powershell
-winget install mpv
 yorumi-cli -e 1 "Frieren"
 ```
 

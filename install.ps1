@@ -31,7 +31,7 @@ function Write-Header($message) {
 
 # ── Progress bar ───────────────────────────────────────────────────
 
-$script:totalSteps = 4
+$script:totalSteps = 5
 $script:currentStep = 0
 $script:currentUnits = 0
 $script:progressUnits = 100
@@ -128,6 +128,54 @@ function Require-Command($name, $installHint) {
     Write-Success "$name found"
 }
 
+function Test-MpvInstalled {
+    if (Get-Command "mpv" -ErrorAction SilentlyContinue) { return $true }
+
+    $candidates = @(
+        "C:\Program Files\MPV Player\mpv.exe",
+        "C:\Program Files (x86)\MPV Player\mpv.exe",
+        "C:\Program Files\mpv\mpv.exe",
+        "C:\Program Files (x86)\mpv\mpv.exe"
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return $true }
+    }
+
+    return $false
+}
+
+function Ensure-Mpv {
+    if (Test-MpvInstalled) {
+        Complete-ProgressStep "Checking mpv"
+        Write-Success "mpv found"
+        return
+    }
+
+    if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+        Complete-ProgressStep "Checking mpv"
+        Write-Warn "mpv was not found and winget is unavailable"
+        Write-Note "Install mpv manually: https://mpv.io/installation/"
+        return
+    }
+
+    Write-Info "mpv not found, installing with winget"
+    Invoke-ProgressCommand "Installing mpv" "winget" @(
+        "install",
+        "--id", "shinchiro.mpv",
+        "-e",
+        "--accept-package-agreements",
+        "--accept-source-agreements"
+    ) $PWD.Path
+
+    if (Test-MpvInstalled) {
+        Write-Success "mpv installed"
+    } else {
+        Write-Warn "mpv installed, but PATH may need a new terminal"
+        Write-Note "If playback does not open, reopen PowerShell and run yorumi-cli again."
+    }
+}
+
 # ── Start ──────────────────────────────────────────────────────────
 
 Write-Host ""
@@ -139,13 +187,7 @@ Complete-ProgressStep "Checking requirements"
 Require-Command "git" "Install Git from https://git-scm.com/download/win"
 Require-Command "node" "Install Node.js from https://nodejs.org/"
 Require-Command "npm" "Install Node.js from https://nodejs.org/"
-
-if (Get-Command "mpv" -ErrorAction SilentlyContinue) {
-    Write-Success "mpv found"
-} else {
-    Write-Warn "mpv was not found on PATH"
-    Write-Note "Install it with: winget install --id shinchiro.mpv -e"
-}
+Ensure-Mpv
 
 if (Get-Command "fzf" -ErrorAction SilentlyContinue) {
     Write-Success "fzf found"

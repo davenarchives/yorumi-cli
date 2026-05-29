@@ -59,6 +59,7 @@
         <p>The easiest way to install Yorumi CLI is using the official PowerShell installer.</p>
 
         <h3>Windows</h3>
+        <p>The PowerShell installer installs Yorumi CLI and attempts to install <code>mpv</code> with Winget when it is missing.</p>
         <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
 
         <h3>Linux / macOS</h3>
@@ -138,7 +139,7 @@
       <section id="troubleshooting">
         <h2>Troubleshooting</h2>
         <h3>mpv does not open</h3>
-        <p>Install mpv with winget, reopen the terminal, then run <code>mpv --version</code>.</p>
+        <p>Run <code>winget install --id shinchiro.mpv -e</code>, reopen the terminal, then run <code>mpv --version</code>.</p>
 
         <h3>Browser opens instead of player</h3>
         <p>That means an old CLI build is still linked. Run <code>npm link</code> again inside <code>yorumi-cli</code>.</p>
