@@ -155,10 +155,6 @@ Yorumi CLI - terminal anime watcher powered by Yorumi + mpv
 Usage:
   yorumi-cli [anime title] [options]
 
-Install Requirements:
-  winget install --id shinchiro.mpv -e
-  winget install junegunn.fzf
-
 Quick Start:
   yorumi-cli
   yorumi-cli "Frieren"
@@ -180,7 +176,7 @@ Options:
   --api-base <url>         Yorumi API URL, defaults to https://yorumi-sigma.vercel.app/api
   --size <WxH>             Player window size, defaults to 960x540
   --print-url              Print the selected stream URL instead of launching mpv
-  -d, --direct             Play the stream directly in mpv without the backend proxy
+  -d, --direct             Play the stream directly in mpv without Yorumi's proxy
   -u, --update             Update Yorumi CLI and its dependencies
   -h, --help               Show this help
 `);
