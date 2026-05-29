@@ -334,40 +334,109 @@ const resolveEpisodeStreamUrl = async (
   };
 };
 
+// ── Colored output helpers ────────────────────────────────────────
+const CLR = {
+  reset: '\x1b[0m',
+  black: '\x1b[30m',
+  green: '\x1b[32m',
+  magenta: '\x1b[35m',
+  bgGreen: '\x1b[42m',
+  bgCyan: '\x1b[46m',
+  bgYellow: '\x1b[43m',
+  bgRed: '\x1b[41m',
+  bgGray: '\x1b[100m',
+  white: '\x1b[1;37m',
+};
+
+const label = (tag: string, bg: string, msg: string) =>
+  `  ${CLR.black}${bg} ${tag} ${CLR.reset}  ${msg}`;
+
+const logSuccess = (msg: string) => console.log(label('success', CLR.bgGreen, msg));
+const logInfo    = (msg: string) => console.log(label('info',    CLR.bgCyan, msg));
+const logWarn    = (msg: string) => console.log(label('warning', CLR.bgYellow, msg));
+const logErr     = (msg: string) => console.log(label('error',   CLR.bgRed, msg));
+const logNote    = (msg: string) => console.log(label('note',    CLR.bgGray, msg));
+
+const progressBar = (current: number, total: number, text: string) => {
+  const pct = Math.floor((current / total) * 100);
+  const width = 40;
+  const filled = Math.floor(width * current / total);
+  const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
+  console.log(`  [${bar}] ${CLR.green}${String(pct).padStart(3)}%${CLR.reset} | ${text}`);
+};
+
 const updateYorumiCli = () => {
   const installRoot = join(process.env.LOCALAPPDATA || process.env.HOME || '', 'YorumiCLI');
   const repoDir = join(installRoot, 'repo');
   const yorumiDir = join(installRoot, 'yorumi');
+  const backendDir = join(installRoot, 'backend');
+  const totalSteps = 2 + (existsSync(yorumiDir) ? 1 : 0) + 1 + (existsSync(backendDir) ? 1 : 0);
+  let step = 0;
+
+  console.log(`\n  ${CLR.magenta}yorumi-cli update${CLR.reset}\n`);
 
   if (!existsSync(repoDir)) {
-    console.error('YorumiCLI installation not found at ' + installRoot);
-    console.error('Please run git pull manually in your installation folder.');
+    logErr('YorumiCLI installation not found at ' + installRoot);
+    logNote('Please run git pull manually in your installation folder.');
     return;
   }
 
-  console.log('Updating Yorumi CLI...');
-  const repoPull = spawnSync('git', ['pull', '--ff-only'], { cwd: repoDir, stdio: 'inherit' });
+  // Step: Pull CLI repo
+  step++;
+  progressBar(step, totalSteps, 'Pulling CLI repository');
+  logInfo('Updating Yorumi CLI...');
+  const repoPull = spawnSync('git', ['pull', '--ff-only'], { cwd: repoDir, encoding: 'utf8', stdio: 'pipe' });
   if (repoPull.error || repoPull.status !== 0) {
-    console.error('Failed to update Yorumi CLI repo.');
-  }
-
-  if (existsSync(yorumiDir)) {
-    console.log('\\nUpdating Yorumi Backend...');
-    const yorumiPull = spawnSync('git', ['pull', '--ff-only'], { cwd: yorumiDir, stdio: 'inherit' });
-    if (yorumiPull.error || yorumiPull.status !== 0) {
-      console.error('Failed to update Yorumi Backend repo.');
+    logErr('Failed to update Yorumi CLI repo.');
+  } else {
+    const out = String(repoPull.stdout || '').trim();
+    if (out.includes('Already up to date')) {
+      logSuccess('Yorumi CLI is already up-to-date');
+    } else {
+      logSuccess('CLI repo updated');
     }
   }
 
-  console.log('\\nInstalling CLI dependencies...');
-  spawnSync('npm', ['install'], { cwd: repoDir, stdio: 'inherit' });
-
-  if (existsSync(join(installRoot, 'backend'))) {
-    console.log('\\nInstalling Backend dependencies...');
-    spawnSync('npm', ['install'], { cwd: join(installRoot, 'backend'), stdio: 'inherit' });
+  // Step: Pull Yorumi backend repo
+  if (existsSync(yorumiDir)) {
+    step++;
+    progressBar(step, totalSteps, 'Pulling backend repository');
+    logInfo('Updating Yorumi backend...');
+    const yorumiPull = spawnSync('git', ['pull', '--ff-only'], { cwd: yorumiDir, encoding: 'utf8', stdio: 'pipe' });
+    if (yorumiPull.error || yorumiPull.status !== 0) {
+      logErr('Failed to update Yorumi backend repo.');
+    } else {
+      const out = String(yorumiPull.stdout || '').trim();
+      if (out.includes('Already up to date')) {
+        logSuccess('Yorumi backend is already up-to-date');
+      } else {
+        logSuccess('Backend repo updated');
+      }
+    }
   }
 
-  console.log('\\nUpdate complete!');
+  // Step: Install CLI deps
+  step++;
+  progressBar(step, totalSteps, 'Installing CLI dependencies');
+  logInfo('Running npm install...');
+  spawnSync('npm', ['install', '--loglevel=error'], { cwd: repoDir, stdio: 'pipe' });
+  logSuccess('CLI dependencies installed');
+
+  // Step: Install backend deps
+  if (existsSync(backendDir)) {
+    step++;
+    progressBar(step, totalSteps, 'Installing backend dependencies');
+    logInfo('Running npm install in backend...');
+    spawnSync('npm', ['install', '--loglevel=error'], { cwd: backendDir, stdio: 'pipe' });
+    logSuccess('Backend dependencies installed');
+  }
+
+  // Done
+  step++;
+  progressBar(step, totalSteps, 'Complete');
+  console.log('');
+  logSuccess('Update complete!');
+  console.log('');
 };
 
 const main = async () => {
