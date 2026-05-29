@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Yorumi CLI Docs</title>
+  <meta name="description" content="Documentation for Yorumi CLI, a terminal anime watcher powered by Yorumi's AnimePahe scraper and mpv." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#">
+      <span class="brand-mark">Y</span>
+      <span>Yorumi CLI</span>
+    </a>
+    <nav class="topnav" aria-label="Top navigation">
+      <a href="#installation">Docs</a>
+      <a href="#deployment">Deploy</a>
+      <a href="https://github.com/" rel="noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="Sidebar navigation">
+      <div class="sidebar-title">Getting Started</div>
+      <a class="active" href="#overview">Overview</a>
+      <a href="#installation">Installation</a>
+      <a href="#first-run">Before First Run</a>
+      <a href="#usage">Basic Usage</a>
+      <a href="#configuration">Configuration</a>
+      <a href="#interactive-menu">Interactive Menu</a>
+      <a href="#deployment">Deployment</a>
+      <a href="#release">Publishing</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+    </aside>
+
+    <main>
+      <section id="overview">
+        <h1>Getting Started</h1>
+        <p class="lead">
+          Yorumi CLI is a command-line anime watcher that searches AnimePahe, resolves streams through Yorumi's scraper,
+          and opens episodes in a small mpv media player window.
+        </p>
+
+        <div class="cards">
+          <article class="card">
+            <h3>Terminal first</h3>
+            <p>Run <code>yorumi-cli "Frieren"</code>, choose an episode, and watch without opening the Yorumi website.</p>
+          </article>
+          <article class="card">
+            <h3>Yorumi powered</h3>
+            <p>The CLI uses Yorumi's backend proxy so blocked HLS segments can still play in mpv.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="installation">
+        <h2>Installation</h2>
+        <p>Install with the PowerShell script today. Winget, Scoop, and Chocolatey commands are the target release channels once their manifests are published.</p>
+
+        <h3>Windows</h3>
+        <div class="tabs" data-tabs>
+          <div class="tab-list" role="tablist">
+            <button class="tab-button active" data-tab-button="powershell">PowerShell</button>
+            <button class="tab-button" data-tab-button="winget">Winget</button>
+            <button class="tab-button" data-tab-button="scoop">Scoop</button>
+            <button class="tab-button" data-tab-button="choco">Chocolatey</button>
+          </div>
+          <div class="tab-panel active" data-tab-panel="powershell">
+            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
+          </div>
+          <div class="tab-panel" data-tab-panel="winget">
+            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">winget install Yorumi.YorumiCLI</span></code></pre>
+          </div>
+          <div class="tab-panel" data-tab-panel="scoop">
+            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">scoop install yorumi-cli</span></code></pre>
+          </div>
+          <div class="tab-panel" data-tab-panel="choco">
+            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">choco install yorumi-cli</span></code></pre>
+          </div>
+        </div>
+
+        <div class="callout warning">
+          Winget, Scoop, and Chocolatey commands require package manifests to be submitted and approved. Use the PowerShell installer until those package channels are live.
+        </div>
+
+        <h3>Linux / macOS</h3>
+        <div class="tabs" data-tabs>
+          <div class="tab-list">
+            <button class="tab-button active" data-tab-button="linux">Linux</button>
+            <button class="tab-button" data-tab-button="mac">macOS</button>
+          </div>
+          <div class="tab-panel active" data-tab-panel="linux">
+            <pre><code><span class="prompt">$</span> <span class="cmd">sudo apt install mpv</span>
+<span class="prompt">$</span> <span class="cmd">cd yorumi-cli && npm link</span></code></pre>
+          </div>
+          <div class="tab-panel" data-tab-panel="mac">
+            <pre><code><span class="prompt">$</span> <span class="cmd">brew install mpv</span>
+<span class="prompt">$</span> <span class="cmd">cd yorumi-cli && npm link</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="first-run">
+        <h2>Before First Run</h2>
+        <div class="callout">
+          <strong>Required:</strong> keep the Yorumi backend running. The CLI sends mpv a Yorumi proxy URL, not a raw CDN URL.
+        </div>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">cd "C:\Github Repos\Yorumi"</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">npm run dev --prefix backend</span></code></pre>
+      </section>
+
+      <section id="usage">
+        <h2>Basic Usage</h2>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli "One Piece"</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -e 1 "Frieren"</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli --episode 1 "Frieren"</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -r "1-5" "Naruto"</span></code></pre>
+
+        <h3>Window size</h3>
+        <p>The mpv window opens at <code>960x540</code> by default. Use <code>--size</code> for a smaller or larger popup.</p>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -e 1 "Frieren" --size 854x480</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -e 1 "Frieren" --size 1280x720</span></code></pre>
+      </section>
+
+      <section id="configuration">
+        <h2>Configuration</h2>
+        <p>Use flags for one-off runs or environment variables for defaults.</p>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli "Frieren" --api-base http://localhost:3001/api</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">$env:YORUMI_API_URL="https://api.example.com/api"</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">$env:YORUMI_PLAYER_SIZE="854x480"</span></code></pre>
+      </section>
+
+      <section id="interactive-menu">
+        <h2>Interactive Menu</h2>
+        <p>When available, Yorumi CLI uses <code>fzf</code> or <code>rofi</code> for anime and episode selection. Without either tool, the built-in numbered menu is used.</p>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli</span>
+<span class="comment"># search anime -> select anime -> choose episode</span></code></pre>
+      </section>
+
+      <section id="deployment">
+        <h2>Deployment</h2>
+        <p>There are two deployable parts: the Yorumi API and this documentation site.</p>
+
+        <h3>Yorumi API</h3>
+        <div class="callout warning">
+          Avoid treating serverless as a long-term video pipe. The CLI can proxy media through Yorumi for local use, but public hosting should be tested carefully for bandwidth and CPU limits.
+        </div>
+        <ol>
+          <li>Deploy the Yorumi backend to a Node host such as Render, Railway, Fly.io, or a VPS.</li>
+          <li>Set environment variables from <code>backend/.env</code> on the host.</li>
+          <li>Verify <code>/api/scraper/search/animepahe?q=frieren</code> responds.</li>
+          <li>Run the CLI with <code>--api-base https://your-api.example.com/api</code>.</li>
+        </ol>
+
+        <h3>Docs on GitHub Pages</h3>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">git add docs README.md package.json scripts</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">git commit -m "Add documentation site"</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">git push origin main</span></code></pre>
+        <p>In GitHub, open <strong>Settings -> Pages</strong>, choose <strong>Deploy from branch</strong>, select <strong>main</strong> and <strong>/docs</strong>.</p>
+      </section>
+
+      <section id="release">
+        <h2>Publishing</h2>
+        <p>When you want <code>npm install -g yorumi-cli</code>, remove <code>private: true</code>, make the package self-contained, and publish.</p>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">npm login</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">npm version patch</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">npm publish --access public</span></code></pre>
+        <div class="callout warning">
+          The current CLI imports Yorumi backend source for development. For npm publishing, move the shared scraper into this package or call a deployed Yorumi API instead.
+        </div>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <h3>mpv does not open</h3>
+        <p>Install mpv with winget, reopen the terminal, then run <code>mpv --version</code>.</p>
+
+        <h3>Browser opens instead of player</h3>
+        <p>That means an old CLI build is still linked. Run <code>npm link</code> again inside <code>yorumi-cli</code>.</p>
+
+        <h3>Video exits immediately</h3>
+        <p>Restart the backend after proxy changes. The playlist must proxy <code>.jpg</code> HLS segments with <code>proxyMedia=1</code>.</p>
+      </section>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <div class="toc-title">On this page</div>
+      <a href="#installation">Installation</a>
+      <a href="#first-run">Before First Run</a>
+      <a href="#usage">Basic Usage</a>
+      <a href="#configuration">Configuration</a>
+      <a href="#interactive-menu">Interactive Menu</a>
+      <a href="#deployment">Deployment</a>
+      <a href="#release">Publishing</a>
+    </aside>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>Yorumi CLI documentation</span>
+      <span>Built for terminal-first anime playback.</span>
+    </div>
+  </footer>
+
+  <script src="./script.js"></script>
+</body>
+</html>

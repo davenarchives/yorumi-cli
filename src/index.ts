@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
 import { AnimePaheScraper, type AnimeSearchResult, type Episode, type StreamLink } from '../../backend/src/scraper/animepahe.js';
@@ -10,6 +10,7 @@ interface CliOptions {
   query: string;
   animeIndex?: number;
   episode?: number;
+  range?: string;
   apiBase: string;
   player: string;
   windowSize: string;
@@ -39,6 +40,12 @@ const parseArgs = (argv: string[]): CliOptions => {
 
     if (arg === '--episode' || arg === '-e') {
       options.episode = Number(next);
+      i += 1;
+      continue;
+    }
+
+    if (arg === '--range' || arg === '-r') {
+      options.range = String(next || '').trim();
       i += 1;
       continue;
     }
@@ -88,6 +95,7 @@ Usage:
 
 Options:
   -e, --episode <number>   Pick an episode without prompting
+  -r, --range <start-end>  Watch an episode range, for example 1-5
   -i, --anime-index <num>  Pick a search result without prompting, 1-based
   -p, --player <command>   Media player command, defaults to mpv
   --api-base <url>         Yorumi API URL, defaults to http://localhost:3001/api
@@ -99,6 +107,38 @@ Options:
 
 const ask = async (question: string) => (await rl.question(question)).trim();
 
+const tryExternalMenu = async <T>(
+  title: string,
+  items: T[],
+  render: (item: T, index: number) => string,
+): Promise<T | null> => {
+  const labels = items.map((item, index) => `${index + 1}. ${render(item, index)}`);
+
+  if (await commandExists('fzf')) {
+    const result = spawnSync('fzf', ['--prompt', `${title}> `, '--height', '40%', '--border', '--layout=default'], {
+      input: labels.join('\n'),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'inherit'],
+    });
+    const selected = String(result.stdout || '').trim();
+    const index = Number(selected.match(/^(\d+)\./)?.[1]) - 1;
+    return Number.isInteger(index) && index >= 0 && index < items.length ? items[index] : null;
+  }
+
+  if (await commandExists('rofi')) {
+    const result = spawnSync('rofi', ['-dmenu', '-i', '-p', title], {
+      input: labels.join('\n'),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'inherit'],
+    });
+    const selected = String(result.stdout || '').trim();
+    const index = Number(selected.match(/^(\d+)\./)?.[1]) - 1;
+    return Number.isInteger(index) && index >= 0 && index < items.length ? items[index] : null;
+  }
+
+  return null;
+};
+
 const chooseFromList = async <T>(
   title: string,
   items: T[],
@@ -106,6 +146,9 @@ const chooseFromList = async <T>(
   defaultIndex = 0,
 ): Promise<T> => {
   if (items.length === 0) throw new Error(`No ${title.toLowerCase()} found.`);
+
+  const externalPick = await tryExternalMenu(title, items, render);
+  if (externalPick) return externalPick;
 
   console.log(`\n${title}`);
   items.forEach((item, index) => {
@@ -134,6 +177,27 @@ const selectEpisode = async (episodes: Episode[], requested?: number) => {
   const raw = await ask(`Episode 1-${latest?.episodeNumber || sorted.length} [${latest?.episodeNumber || 1}]: `);
   const picked = raw ? Number(raw) : Number(latest?.episodeNumber || 1);
   return sorted.find((episode) => Number(episode.episodeNumber) === picked) || latest;
+};
+
+const parseEpisodeRange = (range: string, episodes: Episode[]) => {
+  const match = String(range || '').trim().match(/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/);
+  if (!match) throw new Error('Invalid range. Use a format like 1-5.');
+
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0 || end < start) {
+    throw new Error('Invalid range. Start must be lower than or equal to end.');
+  }
+
+  const selected = [...episodes]
+    .sort((a, b) => Number(a.episodeNumber) - Number(b.episodeNumber))
+    .filter((episode) => {
+      const number = Number(episode.episodeNumber);
+      return Number.isFinite(number) && number >= start && number <= end;
+    });
+
+  if (selected.length === 0) throw new Error(`No episodes found in range ${range}.`);
+  return selected;
 };
 
 const commandExists = (command: string) => new Promise<boolean>((resolve) => {
@@ -174,13 +238,13 @@ const scoreStream = (stream: StreamLink) => {
   return subScore + directScore + quality;
 };
 
-const playInMediaPlayer = async (url: string, player: string, title: string, size: string) => {
+const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string) => {
   const playerCommand = await resolvePlayerCommand(player);
   if (!playerCommand) {
     console.error(`${player} was not found, so no media-player popup can be opened.`);
     console.error('Install mpv, then reopen your terminal: winget install mpv');
     console.error('Or pass the player path: yorumi-cli -p "C:\\Path\\To\\mpv.exe" "Frieren"');
-    console.error(`Resolved stream URL: ${url}`);
+    console.error(`Resolved stream URL: ${urls[0] || ''}`);
     return;
   }
 
@@ -194,7 +258,7 @@ const playInMediaPlayer = async (url: string, player: string, title: string, siz
     '--msg-level=ffmpeg/demuxer=info,demux=info,cplayer=info',
     '--referrer=https://animepahe.pw/',
     '--http-header-fields=Referer: https://animepahe.pw/',
-    url,
+    ...urls,
   ];
   const child = spawn(playerCommand, args, { stdio: 'inherit' });
   await new Promise<void>((resolve, reject) => {
@@ -210,6 +274,25 @@ const playInMediaPlayer = async (url: string, player: string, title: string, siz
 
 const buildYorumiProxyUrl = (apiBase: string, mediaUrl: string) => {
   return `${apiBase}/scraper/proxy?url=${encodeURIComponent(mediaUrl)}&referer=${encodeURIComponent('https://animepahe.pw/')}&proxyMedia=1`;
+};
+
+const resolveEpisodeStreamUrl = async (
+  scraper: AnimePaheScraper,
+  anime: AnimeSearchResult,
+  episode: Episode,
+  apiBase: string,
+) => {
+  console.log(`Fetching streams for episode ${episode.episodeNumber}...`);
+  const streams = await scraper.getLinks(anime.session, episode.session);
+  if (streams.length === 0) throw new Error(`No streams found for episode ${episode.episodeNumber}.`);
+
+  const stream = [...streams].sort((a, b) => scoreStream(b) - scoreStream(a))[0];
+  console.log(`Resolving direct media URL for episode ${episode.episodeNumber}...`);
+  const directStreamUrl = await scraper.resolveStreamUrl(stream);
+  return {
+    stream,
+    url: buildYorumiProxyUrl(apiBase, directStreamUrl),
+  };
 };
 
 const main = async () => {
@@ -236,26 +319,29 @@ const main = async () => {
 
     console.log(`Fetching episodes for ${anime.title}...`);
     const episodePayload = await scraper.getEpisodes(anime.session);
-    const episode = await selectEpisode(episodePayload.episodes, options.episode);
-    if (!episode) throw new Error('No episode selected.');
+    const selectedEpisodes = options.range
+      ? parseEpisodeRange(options.range, episodePayload.episodes)
+      : [await selectEpisode(episodePayload.episodes, options.episode)];
+    if (selectedEpisodes.length === 0) throw new Error('No episode selected.');
 
-    console.log(`Fetching streams for episode ${episode.episodeNumber}...`);
-    const streams = await scraper.getLinks(anime.session, episode.session);
-    if (streams.length === 0) throw new Error('No streams found.');
+    const resolved = [];
+    for (const episode of selectedEpisodes) {
+      resolved.push(await resolveEpisodeStreamUrl(scraper, anime, episode, options.apiBase));
+    }
 
-    const stream = [...streams].sort((a, b) => scoreStream(b) - scoreStream(a))[0];
-    console.log('Resolving direct media URL...');
-    const directStreamUrl = await scraper.resolveStreamUrl(stream);
-    const streamUrl = buildYorumiProxyUrl(options.apiBase, directStreamUrl);
-    const title = `${anime.title} Episode ${episode.episodeNumber}`;
+    const streamUrls = resolved.map((item) => item.url);
+    const firstStream = resolved[0]?.stream;
+    const title = selectedEpisodes.length > 1
+      ? `${anime.title} Episodes ${selectedEpisodes[0].episodeNumber}-${selectedEpisodes[selectedEpisodes.length - 1].episodeNumber}`
+      : `${anime.title} Episode ${selectedEpisodes[0].episodeNumber}`;
 
     if (options.printUrl) {
-      console.log(streamUrl);
+      streamUrls.forEach((url) => console.log(url));
       return;
     }
 
-    console.log(`Opening ${title} in ${options.player} (${stream.quality || 'unknown'}p ${normalizeAudio(stream.audio).toUpperCase()})...`);
-    await playInMediaPlayer(streamUrl, options.player, title, options.windowSize);
+    console.log(`Opening ${title} in ${options.player} (${firstStream?.quality || 'unknown'}p ${normalizeAudio(firstStream?.audio).toUpperCase()})...`);
+    await playInMediaPlayer(streamUrls, options.player, title, options.windowSize);
   } finally {
     await scraper.close();
   }
