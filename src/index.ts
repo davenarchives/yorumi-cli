@@ -348,94 +348,110 @@ const CLR = {
   white: '\x1b[1;37m',
 };
 
-const label = (tag: string, bg: string, msg: string) =>
+const ERASE_LINE = '\x1b[2K';
+const BAR_WIDTH = 40;
+
+const fmtLabel = (tag: string, bg: string, msg: string) =>
   `  ${CLR.black}${bg} ${tag} ${CLR.reset}  ${msg}`;
 
-const logSuccess = (msg: string) => console.log(label('success', CLR.bgGreen, msg));
-const logInfo    = (msg: string) => console.log(label('info',    CLR.bgCyan, msg));
-const logWarn    = (msg: string) => console.log(label('warning', CLR.bgYellow, msg));
-const logErr     = (msg: string) => console.log(label('error',   CLR.bgRed, msg));
-const logNote    = (msg: string) => console.log(label('note',    CLR.bgGray, msg));
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-const progressBar = (current: number, total: number, text: string) => {
-  const pct = Math.floor((current / total) * 100);
-  const width = 40;
-  const filled = Math.floor(width * current / total);
-  const bar = '█'.repeat(filled) + '░'.repeat(width - filled);
-  console.log(`  [${bar}] ${CLR.green}${String(pct).padStart(3)}%${CLR.reset} | ${text}`);
+/** Draws the progress bar in-place on the current line (no newline). */
+const drawBar = (filled: number, text: string) => {
+  const pct = Math.floor((filled / BAR_WIDTH) * 100);
+  const bar = '█'.repeat(filled) + '░'.repeat(BAR_WIDTH - filled);
+  process.stdout.write(`\r${ERASE_LINE}  [${bar}] ${CLR.green}${String(pct).padStart(3)}%${CLR.reset} | ${text}`);
 };
 
-const updateYorumiCli = () => {
+/** Clears the bar line, prints a message above, then redraws the bar. */
+const msgAbove = (filled: number, barText: string, msg: string) => {
+  process.stdout.write(`\r${ERASE_LINE}`);
+  console.log(msg);
+  drawBar(filled, barText);
+};
+
+/** Smoothly animates the bar from current fill to the target step. */
+const animateBar = async (fromFilled: number, targetStep: number, totalSteps: number, text: string) => {
+  const target = Math.floor(BAR_WIDTH * targetStep / totalSteps);
+  let current = fromFilled;
+  while (current < target) {
+    current++;
+    drawBar(current, text);
+    await sleep(18);
+  }
+  return current;
+};
+
+const updateYorumiCli = async () => {
   const installRoot = join(process.env.LOCALAPPDATA || process.env.HOME || '', 'YorumiCLI');
   const repoDir = join(installRoot, 'repo');
   const yorumiDir = join(installRoot, 'yorumi');
   const backendDir = join(installRoot, 'backend');
-  const totalSteps = 2 + (existsSync(yorumiDir) ? 1 : 0) + 1 + (existsSync(backendDir) ? 1 : 0);
+
+  const hasYorumi = existsSync(yorumiDir);
+  const hasBackend = existsSync(backendDir);
+  const totalSteps = 2 + (hasYorumi ? 1 : 0) + (hasBackend ? 1 : 0) + 1;
   let step = 0;
+  let filled = 0;
 
   console.log(`\n  ${CLR.magenta}yorumi-cli update${CLR.reset}\n`);
 
   if (!existsSync(repoDir)) {
-    logErr('YorumiCLI installation not found at ' + installRoot);
-    logNote('Please run git pull manually in your installation folder.');
+    console.log(fmtLabel('error', CLR.bgRed, 'YorumiCLI installation not found at ' + installRoot));
+    console.log(fmtLabel('note', CLR.bgGray, 'Please run git pull manually in your installation folder.'));
     return;
   }
 
   // Step: Pull CLI repo
-  step++;
-  progressBar(step, totalSteps, 'Pulling CLI repository');
-  logInfo('Updating Yorumi CLI...');
+  drawBar(filled, 'Pulling CLI repository...');
   const repoPull = spawnSync('git', ['pull', '--ff-only'], { cwd: repoDir, encoding: 'utf8', stdio: 'pipe' });
+  step++;
+  filled = await animateBar(filled, step, totalSteps, 'Pulling CLI repository');
   if (repoPull.error || repoPull.status !== 0) {
-    logErr('Failed to update Yorumi CLI repo.');
+    msgAbove(filled, 'Pulling CLI repository', fmtLabel('error', CLR.bgRed, 'Failed to update Yorumi CLI repo.'));
   } else {
     const out = String(repoPull.stdout || '').trim();
-    if (out.includes('Already up to date')) {
-      logSuccess('Yorumi CLI is already up-to-date');
-    } else {
-      logSuccess('CLI repo updated');
-    }
+    const msg = out.includes('Already up to date') ? 'Yorumi CLI is already up-to-date' : 'CLI repo updated';
+    msgAbove(filled, 'Pulling CLI repository', fmtLabel('success', CLR.bgGreen, msg));
   }
 
   // Step: Pull Yorumi backend repo
-  if (existsSync(yorumiDir)) {
-    step++;
-    progressBar(step, totalSteps, 'Pulling backend repository');
-    logInfo('Updating Yorumi backend...');
+  if (hasYorumi) {
+    drawBar(filled, 'Pulling backend repository...');
     const yorumiPull = spawnSync('git', ['pull', '--ff-only'], { cwd: yorumiDir, encoding: 'utf8', stdio: 'pipe' });
+    step++;
+    filled = await animateBar(filled, step, totalSteps, 'Pulling backend repository');
     if (yorumiPull.error || yorumiPull.status !== 0) {
-      logErr('Failed to update Yorumi backend repo.');
+      msgAbove(filled, 'Pulling backend repository', fmtLabel('error', CLR.bgRed, 'Failed to update Yorumi backend repo.'));
     } else {
       const out = String(yorumiPull.stdout || '').trim();
-      if (out.includes('Already up to date')) {
-        logSuccess('Yorumi backend is already up-to-date');
-      } else {
-        logSuccess('Backend repo updated');
-      }
+      const msg = out.includes('Already up to date') ? 'Yorumi backend is already up-to-date' : 'Backend repo updated';
+      msgAbove(filled, 'Pulling backend repository', fmtLabel('success', CLR.bgGreen, msg));
     }
   }
 
   // Step: Install CLI deps
-  step++;
-  progressBar(step, totalSteps, 'Installing CLI dependencies');
-  logInfo('Running npm install...');
+  drawBar(filled, 'Installing CLI dependencies...');
   spawnSync('npm', ['install', '--loglevel=error'], { cwd: repoDir, stdio: 'pipe' });
-  logSuccess('CLI dependencies installed');
+  step++;
+  filled = await animateBar(filled, step, totalSteps, 'Installing CLI dependencies');
+  msgAbove(filled, 'Installing CLI dependencies', fmtLabel('success', CLR.bgGreen, 'CLI dependencies installed'));
 
   // Step: Install backend deps
-  if (existsSync(backendDir)) {
-    step++;
-    progressBar(step, totalSteps, 'Installing backend dependencies');
-    logInfo('Running npm install in backend...');
+  if (hasBackend) {
+    drawBar(filled, 'Installing backend dependencies...');
     spawnSync('npm', ['install', '--loglevel=error'], { cwd: backendDir, stdio: 'pipe' });
-    logSuccess('Backend dependencies installed');
+    step++;
+    filled = await animateBar(filled, step, totalSteps, 'Installing backend dependencies');
+    msgAbove(filled, 'Installing backend dependencies', fmtLabel('success', CLR.bgGreen, 'Backend dependencies installed'));
   }
 
   // Done
   step++;
-  progressBar(step, totalSteps, 'Complete');
+  filled = await animateBar(filled, step, totalSteps, 'Complete');
+  process.stdout.write(`\r${ERASE_LINE}`);
   console.log('');
-  logSuccess('Update complete!');
+  console.log(fmtLabel('success', CLR.bgGreen, 'Update complete!'));
   console.log('');
 };
 
