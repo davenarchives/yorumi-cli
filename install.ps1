@@ -88,11 +88,17 @@ function Invoke-ProgressCommand($label, $file, [string[]]$arguments, $workingDir
     try {
         $job = Start-Job -ScriptBlock {
             param($command, $commandArgs, $cwd)
-            $ErrorActionPreference = "Stop"
             Set-Location $cwd
-            & $command @commandArgs
-            if ($LASTEXITCODE -ne 0) {
-                throw "$command exited with code $LASTEXITCODE"
+
+            $output = & $command @commandArgs 2>&1
+            $exitCode = $LASTEXITCODE
+
+            if ($output) {
+                $output | ForEach-Object { Write-Output $_ }
+            }
+
+            if ($exitCode -ne 0) {
+                throw "$command exited with code $exitCode"
             }
         } -ArgumentList $file, $arguments, $workingDirectory
 
