@@ -1,0 +1,21 @@
+{
+  "name": "yorumi-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Command-line AnimePahe watcher using Yorumi scraper logic",
+  "bin": {
+    "yorumi-cli": "./bin/yorumi-cli.cjs"
+  },
+  "scripts": {
+    "dev": "node ../backend/node_modules/tsx/dist/cli.mjs src/index.ts",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "start": "node ../backend/node_modules/tsx/dist/cli.mjs src/index.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.2"
+  }
+}
