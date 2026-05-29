@@ -14,6 +14,8 @@ PowerShell:
 iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex
 ```
 
+The installer clones `yorumi-cli`, clones Yorumi backend support, installs dependencies, and links the `yorumi-cli` command.
+
 Winget:
 
 ```powershell
