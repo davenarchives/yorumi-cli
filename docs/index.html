@@ -25,7 +25,7 @@
       <div class="sidebar-title">Getting Started</div>
       <a class="active" href="#overview">Overview</a>
       <a href="#installation">Installation</a>
-      <a href="#first-run">Before First Run</a>
+      <a href="#first-run">First Run</a>
       <a href="#usage">Basic Usage</a>
       <a href="#configuration">Configuration</a>
       <a href="#interactive-menu">Interactive Menu</a>
@@ -66,12 +66,11 @@
       </section>
 
       <section id="first-run">
-        <h2>Before First Run</h2>
+        <h2>First Run</h2>
         <div class="callout">
-          <strong>Required:</strong> keep the Yorumi backend running. The CLI sends mpv a Yorumi proxy URL, not a raw CDN URL.
+          <strong>Ready:</strong> the CLI uses the hosted Yorumi API by default. Install, run <code>yorumi-cli</code>, search, and watch.
         </div>
-        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">cd "C:\Github Repos\Yorumi"</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">npm run dev --prefix backend</span></code></pre>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli</span></code></pre>
       </section>
 
       <section id="usage">
@@ -91,7 +90,7 @@
       <section id="configuration">
         <h2>Configuration</h2>
         <p>Use flags for one-off runs or environment variables for defaults.</p>
-        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli "Frieren" --api-base http://localhost:3001/api</span>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli "Frieren" --api-base https://yorumi-sigma.vercel.app/api</span>
 <span class="prompt">PS&gt;</span> <span class="cmd">$env:YORUMI_API_URL="https://api.example.com/api"</span>
 <span class="prompt">PS&gt;</span> <span class="cmd">$env:YORUMI_PLAYER_SIZE="854x480"</span></code></pre>
       </section>
@@ -112,8 +111,8 @@
           Avoid treating serverless as a long-term video pipe. The CLI can proxy media through Yorumi for local use, but public hosting should be tested carefully for bandwidth and CPU limits.
         </div>
         <ol>
-          <li>Deploy the Yorumi backend to a Node host such as Render, Railway, Fly.io, or a VPS.</li>
-          <li>Set environment variables from <code>backend/.env</code> on the host.</li>
+          <li>The default CLI API is <code>https://yorumi-sigma.vercel.app/api</code>.</li>
+          <li>Set environment variables on the hosted API when optional services need keys.</li>
           <li>Verify <code>/api/scraper/search/animepahe?q=frieren</code> responds.</li>
           <li>Run the CLI with <code>--api-base https://your-api.example.com/api</code>.</li>
         </ol>
@@ -132,7 +131,7 @@
 <span class="prompt">PS&gt;</span> <span class="cmd">npm version patch</span>
 <span class="prompt">PS&gt;</span> <span class="cmd">npm publish --access public</span></code></pre>
         <div class="callout warning">
-          The current CLI imports Yorumi backend source for development. For npm publishing, move the shared scraper into this package or call a deployed Yorumi API instead.
+          The CLI calls the hosted Yorumi API and does not require local backend files.
         </div>
       </section>
 
@@ -145,14 +144,14 @@
         <p>That means an old CLI build is still linked. Run <code>npm link</code> again inside <code>yorumi-cli</code>.</p>
 
         <h3>Video exits immediately</h3>
-        <p>Restart the backend after proxy changes. The playlist must proxy <code>.jpg</code> HLS segments with <code>proxyMedia=1</code>.</p>
+        <p>Check that the hosted API is returning <code>/api/scraper/playable-stream</code> URLs with <code>proxyMedia=1</code>.</p>
       </section>
     </main>
 
     <aside class="toc" aria-label="On this page">
       <div class="toc-title">On this page</div>
       <a href="#installation">Installation</a>
-      <a href="#first-run">Before First Run</a>
+      <a href="#first-run">First Run</a>
       <a href="#usage">Basic Usage</a>
       <a href="#configuration">Configuration</a>
       <a href="#interactive-menu">Interactive Menu</a>

@@ -5,7 +5,41 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
 import { join } from 'node:path';
-import { AnimePaheScraper, type AnimeSearchResult, type Episode, type StreamLink } from '../../backend/src/scraper/animepahe.js';
+
+interface AnimeSearchResult {
+  id: string | number;
+  title: string;
+  session: string;
+  year?: string | number;
+  episodes?: number;
+}
+
+interface Episode {
+  id: string;
+  session: string;
+  episodeNumber: number;
+  title?: string;
+}
+
+interface StreamLink {
+  quality: string;
+  audio: string;
+  provider?: string;
+  server?: string;
+  url: string;
+  directUrl?: string;
+  isHls?: boolean;
+}
+
+interface EpisodesPayload {
+  episodes: Episode[];
+  lastPage?: number;
+}
+
+interface PlayableStreamPayload {
+  stream: StreamLink;
+  url: string;
+}
 
 interface CliOptions {
   query: string;
@@ -21,12 +55,21 @@ interface CliOptions {
 }
 
 const rl = createInterface({ input, output });
+const DEFAULT_API_BASE = 'https://yorumi-sigma.vercel.app/api';
+
+const getInstallRoot = () => {
+  if (platform() === 'win32') {
+    return join(process.env.LOCALAPPDATA || process.env.USERPROFILE || '', 'YorumiCLI');
+  }
+
+  return join(process.env.XDG_DATA_HOME || join(process.env.HOME || '', '.local', 'share'), 'YorumiCLI');
+};
 
 const parseArgs = (argv: string[]): CliOptions => {
   const queryParts: string[] = [];
   const options: CliOptions = {
     query: '',
-    apiBase: String(process.env.YORUMI_API_URL || 'http://localhost:3001/api').replace(/\/+$/, ''),
+    apiBase: String(process.env.YORUMI_API_URL || DEFAULT_API_BASE).replace(/\/+$/, ''),
     player: String(process.env.YORUMI_PLAYER || 'mpv'),
     windowSize: String(process.env.YORUMI_PLAYER_SIZE || '960x540'),
     printUrl: false,
@@ -134,7 +177,7 @@ Options:
   -r, --range <start-end>  Watch an episode range, for example 1-5
   -i, --anime-index <num>  Pick a search result without prompting, 1-based
   -p, --player <command>   Media player command, defaults to mpv
-  --api-base <url>         Yorumi API URL, defaults to http://localhost:3001/api
+  --api-base <url>         Yorumi API URL, defaults to https://yorumi-sigma.vercel.app/api
   --size <WxH>             Player window size, defaults to 960x540
   --print-url              Print the selected stream URL instead of launching mpv
   -d, --direct             Play the stream directly in mpv without the backend proxy
@@ -276,6 +319,35 @@ const scoreStream = (stream: StreamLink) => {
   return subScore + directScore + quality;
 };
 
+const apiGet = async <T>(apiBase: string, path: string, params: Record<string, string | number | boolean | undefined> = {}): Promise<T> => {
+  const url = new URL(`${apiBase}${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
+  });
+
+  const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+  if (!response.ok) {
+    let message = `${response.status} ${response.statusText}`.trim();
+    try {
+      const payload = await response.json() as { error?: string; message?: string };
+      message = payload.error || payload.message || message;
+    } catch {
+      // Keep the HTTP status message when the response is not JSON.
+    }
+    throw new Error(message);
+  }
+
+  return await response.json() as T;
+};
+
+const searchAnime = (apiBase: string, query: string) => {
+  return apiGet<AnimeSearchResult[]>(apiBase, '/scraper/search/animepahe', { q: query });
+};
+
+const getEpisodes = (apiBase: string, animeSession: string) => {
+  return apiGet<EpisodesPayload>(apiBase, '/scraper/episodes', { session: animeSession });
+};
+
 const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string) => {
   const playerCommand = await resolvePlayerCommand(player);
   if (!playerCommand) {
@@ -310,28 +382,18 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
   });
 };
 
-const buildYorumiProxyUrl = (apiBase: string, mediaUrl: string) => {
-  return `${apiBase}/scraper/proxy?url=${encodeURIComponent(mediaUrl)}&referer=${encodeURIComponent('https://animepahe.pw/')}&proxyMedia=1`;
-};
-
 const resolveEpisodeStreamUrl = async (
-  scraper: AnimePaheScraper,
   anime: AnimeSearchResult,
   episode: Episode,
   apiBase: string,
   directPlay: boolean,
 ) => {
-  console.log(`Fetching streams for episode ${episode.episodeNumber}...`);
-  const streams = await scraper.getLinks(anime.session, episode.session);
-  if (streams.length === 0) throw new Error(`No streams found for episode ${episode.episodeNumber}.`);
-
-  const stream = [...streams].sort((a, b) => scoreStream(b) - scoreStream(a))[0];
-  console.log(`Resolving direct media URL for episode ${episode.episodeNumber}...`);
-  const directStreamUrl = await scraper.resolveStreamUrl(stream);
-  return {
-    stream,
-    url: directPlay ? directStreamUrl : buildYorumiProxyUrl(apiBase, directStreamUrl),
-  };
+  console.log(`Resolving playable stream for episode ${episode.episodeNumber}...`);
+  return await apiGet<PlayableStreamPayload>(apiBase, '/scraper/playable-stream', {
+    anime_session: anime.session,
+    ep_session: episode.session,
+    direct: directPlay ? 1 : undefined,
+  });
 };
 
 // ── Colored output helpers ────────────────────────────────────────
@@ -383,14 +445,10 @@ const animateBar = async (fromFilled: number, targetStep: number, totalSteps: nu
 };
 
 const updateYorumiCli = async () => {
-  const installRoot = join(process.env.LOCALAPPDATA || process.env.HOME || '', 'YorumiCLI');
+  const installRoot = getInstallRoot();
   const repoDir = join(installRoot, 'repo');
-  const yorumiDir = join(installRoot, 'yorumi');
-  const backendDir = join(installRoot, 'backend');
 
-  const hasYorumi = existsSync(yorumiDir);
-  const hasBackend = existsSync(backendDir);
-  const totalSteps = 2 + (hasYorumi ? 1 : 0) + (hasBackend ? 1 : 0) + 1;
+  const totalSteps = 3;
   let step = 0;
   let filled = 0;
 
@@ -415,36 +473,12 @@ const updateYorumiCli = async () => {
     msgAbove(filled, 'Pulling CLI repository', fmtLabel('success', CLR.bgGreen, msg));
   }
 
-  // Step: Pull Yorumi backend repo
-  if (hasYorumi) {
-    drawBar(filled, 'Pulling backend repository...');
-    const yorumiPull = spawnSync('git', ['pull', '--ff-only'], { cwd: yorumiDir, encoding: 'utf8', stdio: 'pipe' });
-    step++;
-    filled = await animateBar(filled, step, totalSteps, 'Pulling backend repository');
-    if (yorumiPull.error || yorumiPull.status !== 0) {
-      msgAbove(filled, 'Pulling backend repository', fmtLabel('error', CLR.bgRed, 'Failed to update Yorumi backend repo.'));
-    } else {
-      const out = String(yorumiPull.stdout || '').trim();
-      const msg = out.includes('Already up to date') ? 'Yorumi backend is already up-to-date' : 'Backend repo updated';
-      msgAbove(filled, 'Pulling backend repository', fmtLabel('success', CLR.bgGreen, msg));
-    }
-  }
-
   // Step: Install CLI deps
   drawBar(filled, 'Installing CLI dependencies...');
   spawnSync('npm', ['install', '--loglevel=error'], { cwd: repoDir, stdio: 'pipe' });
   step++;
   filled = await animateBar(filled, step, totalSteps, 'Installing CLI dependencies');
   msgAbove(filled, 'Installing CLI dependencies', fmtLabel('success', CLR.bgGreen, 'CLI dependencies installed'));
-
-  // Step: Install backend deps
-  if (hasBackend) {
-    drawBar(filled, 'Installing backend dependencies...');
-    spawnSync('npm', ['install', '--loglevel=error'], { cwd: backendDir, stdio: 'pipe' });
-    step++;
-    filled = await animateBar(filled, step, totalSteps, 'Installing backend dependencies');
-    msgAbove(filled, 'Installing backend dependencies', fmtLabel('success', CLR.bgGreen, 'Backend dependencies installed'));
-  }
 
   // Done
   step++;
@@ -459,7 +493,7 @@ const main = async () => {
   const options = parseArgs(process.argv.slice(2));
 
   if (options.update) {
-    updateYorumiCli();
+    await updateYorumiCli();
     return;
   }
 
@@ -469,48 +503,43 @@ const main = async () => {
     return;
   }
 
-  const scraper = new AnimePaheScraper();
-  try {
-    console.log(`Searching AnimePahe for "${query}"...`);
-    const results = await scraper.search(query);
-    const visibleResults = results.slice(0, 12);
-    const requestedAnimeIndex = Number(options.animeIndex || 0);
-    const anime = requestedAnimeIndex > 0 && requestedAnimeIndex <= visibleResults.length
-      ? visibleResults[requestedAnimeIndex - 1]
-      : await chooseFromList<AnimeSearchResult>(
-        'Anime',
-        visibleResults,
-        (item) => `${item.title}${item.year ? ` (${item.year})` : ''}${item.episodes ? ` - ${item.episodes} eps` : ''}`,
-      );
+  console.log(`Searching AnimePahe for "${query}"...`);
+  const results = await searchAnime(options.apiBase, query);
+  const visibleResults = results.slice(0, 12);
+  const requestedAnimeIndex = Number(options.animeIndex || 0);
+  const anime = requestedAnimeIndex > 0 && requestedAnimeIndex <= visibleResults.length
+    ? visibleResults[requestedAnimeIndex - 1]
+    : await chooseFromList<AnimeSearchResult>(
+      'Anime',
+      visibleResults,
+      (item) => `${item.title}${item.year ? ` (${item.year})` : ''}${item.episodes ? ` - ${item.episodes} eps` : ''}`,
+    );
 
-    console.log(`Fetching episodes for ${anime.title}...`);
-    const episodePayload = await scraper.getEpisodes(anime.session);
-    const selectedEpisodes = options.range
-      ? parseEpisodeRange(options.range, episodePayload.episodes)
-      : [await selectEpisode(episodePayload.episodes, options.episode)];
-    if (selectedEpisodes.length === 0) throw new Error('No episode selected.');
+  console.log(`Fetching episodes for ${anime.title}...`);
+  const episodePayload = await getEpisodes(options.apiBase, anime.session);
+  const selectedEpisodes = options.range
+    ? parseEpisodeRange(options.range, episodePayload.episodes)
+    : [await selectEpisode(episodePayload.episodes, options.episode)];
+  if (selectedEpisodes.length === 0) throw new Error('No episode selected.');
 
-    const resolved = [];
-    for (const episode of selectedEpisodes) {
-      resolved.push(await resolveEpisodeStreamUrl(scraper, anime, episode, options.apiBase, options.directPlay));
-    }
-
-    const streamUrls = resolved.map((item) => item.url);
-    const firstStream = resolved[0]?.stream;
-    const title = selectedEpisodes.length > 1
-      ? `${anime.title} Episodes ${selectedEpisodes[0].episodeNumber}-${selectedEpisodes[selectedEpisodes.length - 1].episodeNumber}`
-      : `${anime.title} Episode ${selectedEpisodes[0].episodeNumber}`;
-
-    if (options.printUrl) {
-      streamUrls.forEach((url) => console.log(url));
-      return;
-    }
-
-    console.log(`Opening ${title} in ${options.player} (${firstStream?.quality || 'unknown'}p ${normalizeAudio(firstStream?.audio).toUpperCase()})...`);
-    await playInMediaPlayer(streamUrls, options.player, title, options.windowSize);
-  } finally {
-    await scraper.close();
+  const resolved = [];
+  for (const episode of selectedEpisodes) {
+    resolved.push(await resolveEpisodeStreamUrl(anime, episode, options.apiBase, options.directPlay));
   }
+
+  const streamUrls = resolved.map((item) => item.url);
+  const firstStream = resolved[0]?.stream;
+  const title = selectedEpisodes.length > 1
+    ? `${anime.title} Episodes ${selectedEpisodes[0].episodeNumber}-${selectedEpisodes[selectedEpisodes.length - 1].episodeNumber}`
+    : `${anime.title} Episode ${selectedEpisodes[0].episodeNumber}`;
+
+  if (options.printUrl) {
+    streamUrls.forEach((url) => console.log(url));
+    return;
+  }
+
+  console.log(`Opening ${title} in ${options.player} (${firstStream?.quality || 'unknown'}p ${normalizeAudio(firstStream?.audio).toUpperCase()})...`);
+  await playInMediaPlayer(streamUrls, options.player, title, options.windowSize);
 };
 
 main()

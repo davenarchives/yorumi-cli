@@ -66,5 +66,5 @@ npm install -g yorumi-cli
 Required:
 
 1. Remove `"private": true` from `package.json`.
-2. Make the CLI self-contained or API-only instead of importing `../backend`.
+2. Keep the hosted Yorumi API online because the CLI is API-only.
 3. Run `npm publish --access public`.

@@ -1,14 +1,11 @@
 param(
-    [string]$Repo = "davenarchives/yorumi-cli",
-    [string]$YorumiRepo = "davenarchives/Yorumi"
+    [string]$Repo = "davenarchives/yorumi-cli"
 )
 
 $ErrorActionPreference = "Stop"
 
 $installRoot = Join-Path $env:LOCALAPPDATA "YorumiCLI"
 $repoDir = Join-Path $installRoot "repo"
-$yorumiDir = Join-Path $installRoot "yorumi"
-$backendLink = Join-Path $installRoot "backend"
 
 # ── Pretty output helpers ──────────────────────────────────────────
 
@@ -30,21 +27,67 @@ function Write-Header($message) {
 
 # ── Progress bar ───────────────────────────────────────────────────
 
-$script:totalSteps = 7
+$script:totalSteps = 4
 $script:currentStep = 0
+$script:currentFilled = 0
+$script:barWidth = 40
 
-function Step-Progress($label) {
-    $script:currentStep++
-    $pct = [math]::Floor(($script:currentStep / $script:totalSteps) * 100)
-    $barWidth = 40
-    $filled = [math]::Floor($barWidth * $script:currentStep / $script:totalSteps)
-    $empty = $barWidth - $filled
+function Draw-Progress($filled, $label) {
+    $pct = [math]::Floor(($filled / $script:barWidth) * 100)
+    $empty = $script:barWidth - $filled
     $bar = ("$([char]0x2588)" * $filled) + ("$([char]0x2591)" * $empty)
 
     Write-Host "`r  [$bar] " -NoNewline
-    Write-Host "$pct%" -ForegroundColor Green -NoNewline
+    Write-Host ("{0,3}%" -f $pct) -ForegroundColor Green -NoNewline
     Write-Host " | $label    " -NoNewline
+}
+
+function Complete-ProgressStep($label) {
+    $script:currentStep++
+    $target = [math]::Floor($script:barWidth * $script:currentStep / $script:totalSteps)
+    while ($script:currentFilled -lt $target) {
+        $script:currentFilled++
+        Draw-Progress $script:currentFilled $label
+        Start-Sleep -Milliseconds 18
+    }
     Write-Host ""
+}
+
+function Invoke-ProgressCommand($label, $file, [string[]]$arguments, $workingDirectory) {
+    Draw-Progress $script:currentFilled $label
+    $target = [math]::Floor($script:barWidth * ($script:currentStep + 1) / $script:totalSteps)
+
+    try {
+        $job = Start-Job -ScriptBlock {
+            param($command, $commandArgs, $cwd)
+            $ErrorActionPreference = "Stop"
+            Set-Location $cwd
+            & $command @commandArgs
+            if ($LASTEXITCODE -ne 0) {
+                throw "$command exited with code $LASTEXITCODE"
+            }
+        } -ArgumentList $file, $arguments, $workingDirectory
+
+        while ($job.State -eq "Running") {
+            if ($script:currentFilled -lt ($target - 1)) {
+                $script:currentFilled++
+            }
+            Draw-Progress $script:currentFilled $label
+            Start-Sleep -Milliseconds 90
+        }
+
+        $details = Receive-Job $job 2>&1 | Out-String
+        if ($job.State -ne "Completed") {
+            Write-Host ""
+            Write-Err "$label failed."
+            if ($details) { Write-Host $details.Trim() }
+            throw "$label failed"
+        }
+    } finally {
+        if ($job) { Remove-Job $job -Force -ErrorAction SilentlyContinue }
+    }
+
+    Complete-ProgressStep $label
 }
 
 # ── Requirement check ──────────────────────────────────────────────
@@ -64,7 +107,7 @@ Write-Host "  yorumi-cli installer" -ForegroundColor Magenta
 Write-Host ""
 
 Write-Header "Checking requirements"
-Step-Progress "Checking requirements"
+Complete-ProgressStep "Checking requirements"
 Require-Command "git" "Install Git from https://git-scm.com/download/win"
 Require-Command "node" "Install Node.js from https://nodejs.org/"
 Require-Command "npm" "Install Node.js from https://nodejs.org/"
@@ -85,18 +128,15 @@ if (Get-Command "fzf" -ErrorAction SilentlyContinue) {
 # ── Clone / pull CLI repo ──────────────────────────────────────────
 
 Write-Header "Installing Yorumi CLI"
-Step-Progress "Cloning CLI repository"
 New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
 
 if (Test-Path $repoDir) {
     Write-Info "CLI repo already exists, pulling latest changes"
-    Push-Location $repoDir
-    git pull --ff-only 2>&1 | Out-Null
-    Pop-Location
+    Invoke-ProgressCommand "Updating CLI repository" "git" @("pull", "--ff-only") $repoDir
     Write-Success "CLI repo updated"
 } else {
     Write-Info "Cloning CLI repo from github.com/$Repo"
-    git clone "https://github.com/$Repo.git" $repoDir 2>&1 | Out-Null
+    Invoke-ProgressCommand "Cloning CLI repository" "git" @("clone", "https://github.com/$Repo.git", $repoDir) $installRoot
     Write-Success "CLI repo cloned"
 }
 
@@ -105,65 +145,12 @@ if (-not (Test-Path $repoDir)) {
     throw "Clone failed"
 }
 
-# ── Clone / pull Yorumi backend ────────────────────────────────────
-
-Write-Header "Installing Yorumi backend support"
-Step-Progress "Cloning backend repository"
-
-if (Test-Path $yorumiDir) {
-    Write-Info "Yorumi repo already exists, pulling latest changes"
-    Push-Location $yorumiDir
-    git pull --ff-only 2>&1 | Out-Null
-    Pop-Location
-    Write-Success "Yorumi repo updated"
-} else {
-    Write-Info "Cloning Yorumi repo from github.com/$YorumiRepo"
-    git clone "https://github.com/$YorumiRepo.git" $yorumiDir 2>&1 | Out-Null
-    Write-Success "Yorumi repo cloned"
-}
-
-$backendSource = Join-Path $yorumiDir "backend"
-if (-not (Test-Path $backendSource)) {
-    Write-Err "Unable to find backend folder at $backendSource"
-    throw "Backend not found"
-}
-
-# ── Create junction ────────────────────────────────────────────────
-
-Step-Progress "Linking backend"
-
-if (Test-Path $backendLink) {
-    $item = Get-Item $backendLink -Force
-    if ($item.LinkType -eq "Junction" -or $item.LinkType -eq "SymbolicLink") {
-        Remove-Item $backendLink -Force
-        Write-Info "Removed old backend junction"
-    } elseif ($item.FullName -ne $backendSource) {
-        Write-Err "$backendLink already exists and is not a junction. Remove it and rerun the installer."
-        throw "Junction conflict"
-    }
-}
-
-if (-not (Test-Path $backendLink)) {
-    New-Item -ItemType Junction -Path $backendLink -Target $backendSource | Out-Null
-}
-Write-Success "Backend linked"
-
-# ── Install backend npm deps ──────────────────────────────────────
-
-Write-Header "Installing dependencies"
-Step-Progress "Installing backend npm packages"
-Write-Info "Running npm install in backend..."
-Push-Location $backendLink
-npm install --loglevel=error 2>&1 | Out-Null
-Pop-Location
-Write-Success "Backend dependencies installed"
-
 # ── Install CLI npm deps ──────────────────────────────────────────
 
-Step-Progress "Installing CLI npm packages"
+Write-Header "Installing dependencies"
 Write-Info "Running npm install in CLI..."
+Invoke-ProgressCommand "Installing CLI npm packages" "npm.cmd" @("install", "--loglevel=error") $repoDir
 Push-Location $repoDir
-npm install --loglevel=error 2>&1 | Out-Null
 npm link 2>&1 | Out-Null
 Pop-Location
 Write-Success "CLI dependencies installed"
@@ -171,7 +158,7 @@ Write-Success "CLI globally linked"
 
 # ── Done ──────────────────────────────────────────────────────────
 
-Step-Progress "Complete"
+Complete-ProgressStep "Complete"
 Write-Host ""
 Write-Success "Yorumi CLI installed successfully!"
 Write-Host ""

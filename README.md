@@ -6,7 +6,7 @@
   █   ▀███▀ ██ ██ ▀███▀ ██   ██ ██     ▀████ ██▄▄▄ ██
 ```
 
-Tiny terminal anime watcher using Yorumi's AnimePahe scraper logic and `mpv` for playback.
+Tiny terminal anime watcher using Yorumi's hosted API and `mpv` for playback.
 
 ## Usage
 
@@ -20,7 +20,7 @@ PowerShell:
 iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex
 ```
 
-The installer clones `yorumi-cli`, clones Yorumi backend support, installs dependencies, and links the `yorumi-cli` command.
+The installer clones `yorumi-cli`, installs dependencies, and links the `yorumi-cli` command.
 
 Winget:
 
@@ -48,18 +48,10 @@ npm link
 yorumi-cli
 ```
 
-The scripts use the backend's existing `tsx` install, so run `npm install --prefix ../backend` first if backend dependencies are not installed yet. Install `mpv` for the media player popup behavior, then reopen your terminal so PATH refreshes. Keep Yorumi's backend running so the CLI can use its stream proxy.
+Install `mpv` for the media player popup behavior, then reopen your terminal so PATH refreshes. The CLI uses `https://yorumi-sigma.vercel.app/api` by default.
 
 ```powershell
 winget install mpv
-npm run dev --prefix backend
-```
-
-In a second terminal:
-
-```powershell
-cd "C:\Github Repos\Yorumi\yorumi-cli"
-npm link
 yorumi-cli -e 1 "Frieren"
 ```
 
@@ -80,7 +72,7 @@ yorumi-cli --episode 1 "Frieren"
 yorumi-cli -r "1-5" "Naruto"
 yorumi-cli --range "1-5" "Naruto"
 yorumi-cli "one piece" --episode 1120
-yorumi-cli "frieren" --episode 1 --api-base http://localhost:3001/api
+yorumi-cli "frieren" --episode 1 --api-base https://yorumi-sigma.vercel.app/api
 yorumi-cli "frieren" --episode 1 --size 854x480
 yorumi-cli "frieren" --anime-index 1 --episode 1 --print-url
 ```
@@ -119,13 +111,13 @@ The docs are static HTML/CSS/JS, so they also work on Netlify, Vercel, Cloudflar
 
 ## Real Release Notes
 
-For a real public install flow like:
+For a public npm install flow like:
 
 ```powershell
 npm install -g yorumi-cli
 ```
 
-the CLI needs to stop importing `../backend` directly. Either move the shared AnimePahe scraper into this package or make the CLI call a deployed Yorumi API with `--api-base`.
+remove `"private": true` from `package.json`, publish the package, and keep the hosted Yorumi API online.
 
 ## Interactive Menu
 
