@@ -56,49 +56,13 @@
 
       <section id="installation">
         <h2>Installation</h2>
-        <p>Install with the PowerShell script today. Winget, Scoop, and Chocolatey commands are the target release channels once their manifests are published.</p>
+        <p>The easiest way to install Yorumi CLI is using the official PowerShell installer.</p>
 
         <h3>Windows</h3>
-        <div class="tabs" data-tabs>
-          <div class="tab-list" role="tablist">
-            <button class="tab-button active" data-tab-button="powershell">PowerShell</button>
-            <button class="tab-button" data-tab-button="winget">Winget</button>
-            <button class="tab-button" data-tab-button="scoop">Scoop</button>
-            <button class="tab-button" data-tab-button="choco">Chocolatey</button>
-          </div>
-          <div class="tab-panel active" data-tab-panel="powershell">
-            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
-          </div>
-          <div class="tab-panel" data-tab-panel="winget">
-            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">winget install Yorumi.YorumiCLI</span></code></pre>
-          </div>
-          <div class="tab-panel" data-tab-panel="scoop">
-            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">scoop install yorumi-cli</span></code></pre>
-          </div>
-          <div class="tab-panel" data-tab-panel="choco">
-            <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">choco install yorumi-cli</span></code></pre>
-          </div>
-        </div>
-
-        <div class="callout warning">
-          Winget, Scoop, and Chocolatey commands require package manifests to be submitted and approved. Use the PowerShell installer until those package channels are live.
-        </div>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
 
         <h3>Linux / macOS</h3>
-        <div class="tabs" data-tabs>
-          <div class="tab-list">
-            <button class="tab-button active" data-tab-button="linux">Linux</button>
-            <button class="tab-button" data-tab-button="mac">macOS</button>
-          </div>
-          <div class="tab-panel active" data-tab-panel="linux">
-            <pre><code><span class="prompt">$</span> <span class="cmd">sudo apt install mpv</span>
-<span class="prompt">$</span> <span class="cmd">cd yorumi-cli && npm link</span></code></pre>
-          </div>
-          <div class="tab-panel" data-tab-panel="mac">
-            <pre><code><span class="prompt">$</span> <span class="cmd">brew install mpv</span>
-<span class="prompt">$</span> <span class="cmd">cd yorumi-cli && npm link</span></code></pre>
-          </div>
-        </div>
+        <pre><code><span class="prompt">$</span> <span class="cmd">curl -sL https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.sh | bash</span></code></pre>
       </section>
 
       <section id="first-run">
