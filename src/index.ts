@@ -4,7 +4,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 interface AnimeSearchResult {
   id: string | number;
@@ -251,9 +251,17 @@ const selectEpisode = async (episodes: Episode[], requested?: number) => {
   }
 
   const latest = sorted[sorted.length - 1];
-  const raw = await ask(`Episode 1-${latest?.episodeNumber || sorted.length} [${latest?.episodeNumber || 1}]: `);
-  const picked = raw ? Number(raw) : Number(latest?.episodeNumber || 1);
-  return sorted.find((episode) => Number(episode.episodeNumber) === picked) || latest;
+  return chooseFromList<Episode>(
+    'Episode',
+    sorted,
+    (episode) => {
+      const title = String(episode.title || '').trim();
+      return title && !/^episode\s+\d+(?:\.\d+)?$/i.test(title)
+        ? `Episode ${episode.episodeNumber} - ${title}`
+        : `Episode ${episode.episodeNumber}`;
+    },
+    Math.max(0, sorted.indexOf(latest)),
+  );
 };
 
 const parseEpisodeRange = (range: string, episodes: Episode[]) => {
@@ -300,6 +308,15 @@ const resolvePlayerCommand = async (player: string) => {
   ];
 
   return candidates.find((candidate) => existsSync(candidate)) || null;
+};
+
+const resolveNpmCommand = async () => {
+  if (platform() === 'win32') {
+    const bundledNpm = join(dirname(process.execPath), 'npm.cmd');
+    if (existsSync(bundledNpm)) return bundledNpm;
+  }
+
+  return await commandExists('npm') ? 'npm' : null;
 };
 
 const normalizeAudio = (value: unknown) => {
@@ -477,7 +494,13 @@ const updateYorumiCli = async () => {
 
   if (!existsSync(repoDir)) {
     console.log(fmtLabel('error', CLR.bgRed, 'YorumiCLI installation not found at ' + installRoot));
-    console.log(fmtLabel('note', CLR.bgGray, 'Please run git pull manually in your installation folder.'));
+    console.log(fmtLabel('note', CLR.bgGray, 'Please rerun the installer to install the latest version.'));
+    return;
+  }
+
+  if (!existsSync(join(repoDir, '.git')) || !(await commandExists('git'))) {
+    console.log(fmtLabel('warning', CLR.bgYellow, 'This install cannot update with git pull.'));
+    console.log(fmtLabel('note', CLR.bgGray, 'Rerun the installer to download the latest version.'));
     return;
   }
 
@@ -496,7 +519,13 @@ const updateYorumiCli = async () => {
 
   // Step: Install CLI deps
   drawBar(filled, 'Installing CLI dependencies...');
-  spawnSync('npm', ['install', '--loglevel=error'], { cwd: repoDir, stdio: 'pipe' });
+  const npmCommand = await resolveNpmCommand();
+  if (!npmCommand) {
+    msgAbove(filled, 'Installing CLI dependencies', fmtLabel('error', CLR.bgRed, 'npm was not found.'));
+    return;
+  }
+
+  spawnSync(npmCommand, ['install', '--loglevel=error'], { cwd: repoDir, stdio: 'pipe' });
   step++;
   filled = await animateBar(filled, step, totalSteps, 'Installing CLI dependencies');
   msgAbove(filled, 'Installing CLI dependencies', fmtLabel('success', CLR.bgGreen, 'CLI dependencies installed'));

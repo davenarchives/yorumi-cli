@@ -12,6 +12,8 @@ iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/instal
 
 Update the username/repository in `install.ps1` if the final GitHub path is different.
 
+The Windows installer should work without Git installed by falling back to the GitHub `main.zip` archive. It should also work without global Node.js/npm by installing a private Node.js runtime under `%LOCALAPPDATA%\YorumiCLI`.
+
 ## Winget
 
 Target command:

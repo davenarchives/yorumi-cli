@@ -20,7 +20,7 @@ PowerShell:
 iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex
 ```
 
-The installer clones `yorumi-cli`, installs dependencies, and links the `yorumi-cli` command.
+The installer downloads `yorumi-cli`, installs a private Node.js/npm runtime when needed, installs dependencies, and adds the `yorumi-cli` command to PATH. Git and global Node.js/npm are optional on Windows.
 
 Winget:
 
@@ -40,7 +40,7 @@ Chocolatey:
 choco install yorumi-cli
 ```
 
-Package-manager installs require published winget/scoop/choco manifests. Until those are submitted, use the PowerShell installer or local `npm link`.
+Package-manager installs require published winget/scoop/choco manifests. Until those are submitted, use the PowerShell installer. For local development, use `npm link`.
 
 ```powershell
 cd yorumi-cli
