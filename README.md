@@ -20,7 +20,7 @@ PowerShell:
 iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex
 ```
 
-The installer downloads `yorumi-cli`, installs a private Node.js/npm runtime when needed, installs dependencies, and adds the `yorumi-cli` command to PATH. Git and global Node.js/npm are optional on Windows.
+The installer downloads `yorumi-cli`, installs private Node.js/npm and `fzf` runtimes when needed, installs dependencies, and adds the `yorumi-cli` command to PATH. Git and global Node.js/npm are optional on Windows.
 
 Winget:
 
@@ -120,7 +120,7 @@ remove `"private": true` from `package.json`, publish the package, and keep the 
 
 ## Interactive Menu
 
-If `fzf` or `rofi` is installed, Yorumi CLI uses it for anime and episode selection. If neither is installed, it falls back to the built-in numbered menu.
+Yorumi CLI uses `fzf` or `rofi` for anime and episode selection. The Windows installer includes portable `fzf`; without `fzf` or `rofi`, the CLI exits with an installer hint instead of showing a numbered terminal menu.
 
 ```powershell
 yorumi-cli

@@ -220,26 +220,15 @@ const chooseFromList = async <T>(
   title: string,
   items: T[],
   render: (item: T, index: number) => string,
-  defaultIndex = 0,
 ): Promise<T> => {
   if (items.length === 0) throw new Error(`No ${title.toLowerCase()} found.`);
 
   const externalPick = await tryExternalMenu(title, items, render);
   if (externalPick) return externalPick;
 
-  console.log(`\n${title}`);
-  items.forEach((item, index) => {
-    console.log(`${String(index + 1).padStart(2, ' ')}. ${render(item, index)}`);
-  });
-
-  while (true) {
-    const raw = await ask(`Choose ${title.toLowerCase()} [${defaultIndex + 1}]: `);
-    const selected = raw ? Number(raw) - 1 : defaultIndex;
-    if (Number.isInteger(selected) && selected >= 0 && selected < items.length) {
-      return items[selected];
-    }
-    console.log('Pick a number from the list.');
-  }
+  throw new Error(
+    `No ${title.toLowerCase()} selected. Install fzf or rofi to use Yorumi CLI's interactive picker.`,
+  );
 };
 
 const selectEpisode = async (episodes: Episode[], requested?: number) => {
@@ -250,7 +239,6 @@ const selectEpisode = async (episodes: Episode[], requested?: number) => {
     console.log(`Episode ${requested} was not found. Showing episode picker instead.`);
   }
 
-  const latest = sorted[sorted.length - 1];
   return chooseFromList<Episode>(
     'Episode',
     sorted,
@@ -260,7 +248,6 @@ const selectEpisode = async (episodes: Episode[], requested?: number) => {
         ? `Episode ${episode.episodeNumber} - ${title}`
         : `Episode ${episode.episodeNumber}`;
     },
-    Math.max(0, sorted.indexOf(latest)),
   );
 };
 

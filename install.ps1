@@ -35,7 +35,7 @@ function Write-Header($message) {
 
 # ── Progress bar ───────────────────────────────────────────────────
 
-$script:totalSteps = 6
+$script:totalSteps = 7
 $script:currentStep = 0
 $script:currentUnits = 0
 $script:progressUnits = 100
@@ -209,6 +209,14 @@ function Get-NodeArchiveArch {
     }
 }
 
+function Get-FzfArchiveArch {
+    $nodeArch = Get-NodeArchiveArch
+    switch ($nodeArch) {
+        "arm64" { return "arm64" }
+        default { return "amd64" }
+    }
+}
+
 function Get-PortableNodePaths {
     if (-not (Test-Path $nodeRoot)) { return $null }
 
@@ -378,6 +386,71 @@ setlocal
     Write-Success "CLI command shim installed"
 }
 
+function Install-PortableFzf {
+    Draw-Progress $script:currentUnits "Installing fzf"
+
+    $arch = Get-FzfArchiveArch
+    $workDir = Join-Path $installRoot ("fzf-download-" + [guid]::NewGuid().ToString("N"))
+    $zipPath = Join-Path $workDir "fzf.zip"
+    $extractDir = Join-Path $workDir "extract"
+    $fzfPath = Join-Path $binDir "fzf.exe"
+
+    Assert-SafeInstallPath $workDir
+    Assert-SafeInstallPath $binDir
+
+    try {
+        New-Item -ItemType Directory -Force -Path $workDir | Out-Null
+        New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+        New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/junegunn/fzf/releases/latest"
+        $asset = $release.assets |
+            Where-Object { $_.name -like "*windows_$arch.zip" } |
+            Select-Object -First 1
+
+        if (-not $asset -or -not $asset.browser_download_url) {
+            throw "Could not find a Windows fzf archive for $arch."
+        }
+
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath -UseBasicParsing
+        Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+
+        $downloadedFzf = Get-ChildItem -Path $extractDir -Recurse -File -Filter "fzf.exe" | Select-Object -First 1
+        if (-not $downloadedFzf) {
+            throw "Downloaded fzf archive did not contain fzf.exe."
+        }
+
+        Copy-Item -LiteralPath $downloadedFzf.FullName -Destination $fzfPath -Force
+    } finally {
+        if (Test-Path $workDir) {
+            Remove-Item -LiteralPath $workDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Complete-ProgressStep "Installing fzf"
+}
+
+function Ensure-Fzf {
+    if (Get-Command "fzf" -ErrorAction SilentlyContinue) {
+        Complete-ProgressStep "Checking fzf"
+        Write-Success "fzf found"
+        return
+    }
+
+    $fzfPath = Join-Path $binDir "fzf.exe"
+    if (Test-Path $fzfPath) {
+        Complete-ProgressStep "Checking fzf"
+        Add-UserPathEntry $binDir
+        Write-Success "portable fzf ready"
+        return
+    }
+
+    Write-Info "fzf not found, installing portable fzf"
+    Install-PortableFzf
+    Add-UserPathEntry $binDir
+    Write-Success "portable fzf installed"
+}
+
 function Test-MpvInstalled {
     if (Get-Command "mpv" -ErrorAction SilentlyContinue) { return $true }
 
@@ -442,12 +515,7 @@ if ($gitAvailable) {
 }
 Ensure-NodeRuntime
 Ensure-Mpv
-
-if (Get-Command "fzf" -ErrorAction SilentlyContinue) {
-    Write-Success "fzf found"
-} else {
-    Write-Note "fzf not found (optional). Install for fuzzy menus: winget install junegunn.fzf"
-}
+Ensure-Fzf
 
 # ── Clone / pull CLI repo ──────────────────────────────────────────
 

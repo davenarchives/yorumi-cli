@@ -14,6 +14,8 @@ Update the username/repository in `install.ps1` if the final GitHub path is diff
 
 The Windows installer should work without Git installed by falling back to the GitHub `main.zip` archive. It should also work without global Node.js/npm by installing a private Node.js runtime under `%LOCALAPPDATA%\YorumiCLI`.
 
+It should install portable `fzf.exe` into `%LOCALAPPDATA%\YorumiCLI\bin` so non-dev users always get the interactive picker.
+
 ## Winget
 
 Target command:
