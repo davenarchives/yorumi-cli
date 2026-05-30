@@ -540,7 +540,7 @@ const main = async () => {
     return;
   }
 
-  console.log(`Searching AnimePahe for "${query}"...`);
+  console.log(`Searching Yorumi for "${query}"...`);
   const results = await searchAnime(options.apiBase, query);
   const visibleResults = results.slice(0, 12);
   const requestedAnimeIndex = Number(options.animeIndex || 0);
