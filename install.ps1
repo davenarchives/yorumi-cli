@@ -195,7 +195,14 @@ function Install-RepoFromZip {
 }
 
 function Get-NodeArchiveArch {
-    switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()) {
+    $architecture = ""
+    if ($env:PROCESSOR_ARCHITEW6432) {
+        $architecture = $env:PROCESSOR_ARCHITEW6432
+    } elseif ($env:PROCESSOR_ARCHITECTURE) {
+        $architecture = $env:PROCESSOR_ARCHITECTURE
+    }
+
+    switch ($architecture.ToLowerInvariant()) {
         "arm64" { return "arm64" }
         "x86" { return "x86" }
         default { return "x64" }
