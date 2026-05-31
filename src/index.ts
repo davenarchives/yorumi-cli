@@ -165,18 +165,11 @@ Examples:
   yorumi-cli "One Piece"
   yorumi-cli --episode 1 "Frieren"
   yorumi-cli --range "1-5" "Naruto"
-  yorumi-cli "Frieren" --size 854x480
-  yorumi-cli "Frieren" --print-url
 
 Options:
   -e, --episode <number>   Pick an episode without prompting
   -r, --range <start-end>  Watch an episode range, for example 1-5
   -i, --anime-index <num>  Pick a search result without prompting, 1-based
-  -p, --player <command>   Media player command, defaults to mpv
-  --api-base <url>         Yorumi API URL, defaults to https://yorumi-sigma.vercel.app/api
-  --size <WxH>             Player window size, defaults to 960x540
-  --print-url              Print the selected stream URL instead of launching mpv
-  -d, --direct             Kept for compatibility; mpv playback already uses direct streams
   -u, --update             Update Yorumi CLI and its dependencies
   -h, --help               Show this help
 `);

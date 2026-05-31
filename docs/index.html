@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Yorumi CLI Docs</title>
   <meta name="description" content="Documentation for Yorumi CLI, a terminal anime watcher powered by Yorumi's AnimePahe scraper and mpv." />
+  <link rel="icon" type="image/png" href="./yorumi-icon.png" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#">
-      <span class="brand-mark">Y</span>
+      <img class="brand-mark" src="./yorumi-icon.png" alt="" />
       <span>Yorumi CLI</span>
     </a>
     <nav class="topnav" aria-label="Top navigation">
       <a href="#installation">Docs</a>
-      <a href="#deployment">Deploy</a>
       <a href="https://github.com/" rel="noreferrer">GitHub</a>
     </nav>
   </header>
@@ -27,10 +27,7 @@
       <a href="#installation">Installation</a>
       <a href="#first-run">First Run</a>
       <a href="#usage">Basic Usage</a>
-      <a href="#configuration">Configuration</a>
       <a href="#interactive-menu">Interactive Menu</a>
-      <a href="#deployment">Deployment</a>
-      <a href="#release">Publishing</a>
       <a href="#troubleshooting">Troubleshooting</a>
     </aside>
 
@@ -41,6 +38,9 @@
           Yorumi CLI is a command-line anime watcher that searches AnimePahe, resolves streams through Yorumi's scraper,
           and opens episodes in a small mpv media player window.
         </p>
+        <pre class="ascii-art" aria-label="Yorumi CLI ASCII art"><code>▄▄ ▄▄  ▄▄▄  ▄▄▄▄  ▄▄ ▄▄ ▄▄   ▄▄ ▄▄      ▄▄▄▄ ▄▄    ▄▄
+▀███▀ ██▀██ ██▄█▄ ██ ██ ██▀▄▀██ ██ ▄▄▄ ██▀▀▀ ██    ██
+  █   ▀███▀ ██ ██ ▀███▀ ██   ██ ██     ▀████ ██▄▄▄ ██</code></pre>
 
         <div class="cards">
           <article class="card">
@@ -82,18 +82,9 @@
 <span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli --episode 1 "Frieren"</span>
 <span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -r "1-5" "Naruto"</span></code></pre>
 
-        <h3>Window size</h3>
-        <p>The mpv window opens at <code>960x540</code> by default. Use <code>--size</code> for a smaller or larger popup.</p>
-        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -e 1 "Frieren" --size 854x480</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -e 1 "Frieren" --size 1280x720</span></code></pre>
-      </section>
-
-      <section id="configuration">
-        <h2>Configuration</h2>
-        <p>Use flags for one-off runs or environment variables for defaults.</p>
-        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli "Frieren" --api-base https://yorumi-sigma.vercel.app/api</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">$env:YORUMI_API_URL="https://api.example.com/api"</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">$env:YORUMI_PLAYER_SIZE="854x480"</span></code></pre>
+        <h3>Keep It Updated</h3>
+        <p>Run the built-in updater any time you want the latest CLI version and dependencies.</p>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli --update</span></code></pre>
       </section>
 
       <section id="interactive-menu">
@@ -101,39 +92,6 @@
         <p>When available, Yorumi CLI uses <code>fzf</code> or <code>rofi</code> for anime and episode selection. Without either tool, the built-in numbered menu is used.</p>
         <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli</span>
 <span class="comment"># search anime -> select anime -> choose episode</span></code></pre>
-      </section>
-
-      <section id="deployment">
-        <h2>Deployment</h2>
-        <p>There are two deployable parts: the Yorumi API and this documentation site.</p>
-
-        <h3>Yorumi API</h3>
-        <div class="callout warning">
-          Avoid treating serverless as a long-term video pipe. The CLI can proxy media through Yorumi for local use, but public hosting should be tested carefully for bandwidth and CPU limits.
-        </div>
-        <ol>
-          <li>The default CLI API is <code>https://yorumi-sigma.vercel.app/api</code>.</li>
-          <li>Set environment variables on the hosted API when optional services need keys.</li>
-          <li>Verify <code>/api/scraper/search/animepahe?q=frieren</code> responds.</li>
-          <li>Run the CLI with <code>--api-base https://your-api.example.com/api</code>.</li>
-        </ol>
-
-        <h3>Docs on GitHub Pages</h3>
-        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">git add docs README.md package.json scripts</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">git commit -m "Add documentation site"</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">git push origin main</span></code></pre>
-        <p>In GitHub, open <strong>Settings -> Pages</strong>, choose <strong>Deploy from branch</strong>, select <strong>main</strong> and <strong>/docs</strong>.</p>
-      </section>
-
-      <section id="release">
-        <h2>Publishing</h2>
-        <p>When you want <code>npm install -g yorumi-cli</code>, remove <code>private: true</code>, make the package self-contained, and publish.</p>
-        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">npm login</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">npm version patch</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">npm publish --access public</span></code></pre>
-        <div class="callout warning">
-          The CLI calls the hosted Yorumi API and does not require local backend files.
-        </div>
       </section>
 
       <section id="troubleshooting">
@@ -154,10 +112,7 @@
       <a href="#installation">Installation</a>
       <a href="#first-run">First Run</a>
       <a href="#usage">Basic Usage</a>
-      <a href="#configuration">Configuration</a>
       <a href="#interactive-menu">Interactive Menu</a>
-      <a href="#deployment">Deployment</a>
-      <a href="#release">Publishing</a>
     </aside>
   </div>
 
