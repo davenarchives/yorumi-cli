@@ -2,7 +2,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, rmSync } from 'node:fs';
 import { platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -613,6 +613,30 @@ Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction SilentlyContinue
   child.unref();
 };
 
+const getWindowsCommandShimPaths = () => {
+  if (platform() !== 'win32') return [];
+
+  const npmBin = process.env.APPDATA ? join(process.env.APPDATA, 'npm') : '';
+  return [
+    join(binPathFromInstallRoot(), 'yorumi-cli.cmd'),
+    npmBin ? join(npmBin, 'yorumi-cli') : '',
+    npmBin ? join(npmBin, 'yorumi-cli.cmd') : '',
+    npmBin ? join(npmBin, 'yorumi-cli.ps1') : '',
+    npmBin ? join(npmBin, 'node_modules', 'yorumi-cli') : '',
+  ].filter(Boolean);
+};
+
+const binPathFromInstallRoot = () => join(resolve(getInstallRoot()), 'bin');
+
+const removeKnownCommandShims = () => {
+  for (const target of getWindowsCommandShimPaths()) {
+    if (!existsSync(target)) continue;
+
+    const stats = lstatSync(target);
+    rmSync(target, { recursive: stats.isDirectory() && !stats.isSymbolicLink(), force: true });
+  }
+};
+
 const uninstallYorumiCli = async (yes: boolean) => {
   const installRoot = resolve(getInstallRoot());
   const binPath = join(installRoot, 'bin');
@@ -645,6 +669,7 @@ const uninstallYorumiCli = async (yes: boolean) => {
   msgAbove(filled, 'Checking installation', fmtLabel('success', CLR.bgGreen, 'Yorumi CLI installation found'));
 
   drawBar(filled, 'Starting cleanup helper...');
+  removeKnownCommandShims();
   removePathLater(installRoot, binPath);
   step++;
   filled = await animateBar(filled, step, totalSteps, 'Starting cleanup helper');
