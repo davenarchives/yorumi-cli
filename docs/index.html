@@ -18,6 +18,7 @@
     <nav class="site-nav" aria-label="Primary navigation">
       <a href="#install">Install</a>
       <a href="./docs.html">Docs</a>
+      <a href="./changelogs.html">Changelogs</a>
       <a class="icon-link" href="https://github.com/davenarchives/yorumi-cli" rel="noreferrer" target="_blank" aria-label="Open GitHub repository">
         <span class="github-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false">
@@ -68,7 +69,7 @@
             <span class="dot"></span>
             <span class="window-title">Windows PowerShell</span>
           </div>
-          <pre><code><span>C:\Users\Yorumi&gt; </span><strong>yorumi-cli -e 1 "frieren"</strong>
+          <pre><code><span>C:\Users\Yorumi&gt; </span><strong class="term-command">yorumi-cli</strong> <span class="term-flag">-e</span> <span class="term-value">1</span> <span class="term-title">"frieren"</span>
 Searching Yorumi for "frieren"...
 Fetching episodes for Frieren: Beyond Journey's End...
 Resolving playable stream for episode 1...
@@ -81,7 +82,7 @@ C:\Users\Yorumi&gt;</code></pre>
             <span class="dot"></span>
             <span class="window-title">Download anime</span>
           </div>
-          <pre><code><span>C:\Users\Yorumi&gt; </span><strong>yorumi-cli -d -e 3 "wistoria"</strong>
+          <pre><code><span>C:\Users\Yorumi&gt; </span><strong class="term-command">yorumi-cli</strong> <span class="term-flag">-d</span> <span class="term-flag">-e</span> <span class="term-value">3</span> <span class="term-title">"wistoria"</span>
 Resolving playable stream for episode 3...
 Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
 [████████████████░░░░░░░░] 66% | Episode 3 | media 0:15:34</code></pre>
@@ -94,7 +95,7 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
           </div>
           <div class="player-frame"></div>
           <div class="player-controls">
-            <span>0:00:06</span>
+            <span>0:10:06</span>
             <div class="timeline"><span></span></div>
             <span>0:24:01</span>
           </div>
