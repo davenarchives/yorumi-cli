@@ -892,9 +892,14 @@ td {
 }
 
 .changelog-entry ul {
-  margin: 22px 0 0;
+  margin: 10px 0 0;
   padding-left: 24px;
   color: var(--muted);
+}
+
+.changelog-entry h3 {
+  margin: 24px 0 0;
+  font-size: 20px;
 }
 
 .changelog-entry li + li {
