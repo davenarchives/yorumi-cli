@@ -573,10 +573,30 @@ const downloadEpisodes = async (
   console.log('Download complete.');
 };
 
-const removePathLater = (targetPath: string) => {
+const removePathLater = (targetPath: string, binPath: string) => {
   if (platform() === 'win32') {
     const quotedPath = `'${targetPath.replace(/'/g, "''")}'`;
-    const script = `Start-Sleep -Milliseconds 800; Remove-Item -LiteralPath ${quotedPath} -Recurse -Force`;
+    const quotedBinPath = `'${binPath.replace(/'/g, "''")}'`;
+    const script = `
+Start-Sleep -Milliseconds 800
+$target = ${quotedPath}
+$binPath = ${quotedBinPath}
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+if ($userPath) {
+  $normalizedBin = [System.IO.Path]::GetFullPath($binPath).TrimEnd('\\', '/')
+  $nextPath = ($userPath -split ';' | Where-Object {
+    if (-not $_.Trim()) { return $false }
+    try {
+      $entry = [Environment]::ExpandEnvironmentVariables($_.Trim().Trim('"'))
+      [System.IO.Path]::GetFullPath($entry).TrimEnd('\\', '/') -ne $normalizedBin
+    } catch {
+      $true
+    }
+  }) -join ';'
+  [Environment]::SetEnvironmentVariable('Path', $nextPath, 'User')
+}
+Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction SilentlyContinue
+`;
     const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script], {
       detached: true,
       stdio: 'ignore',
@@ -595,27 +615,48 @@ const removePathLater = (targetPath: string) => {
 
 const uninstallYorumiCli = async (yes: boolean) => {
   const installRoot = resolve(getInstallRoot());
+  const binPath = join(installRoot, 'bin');
+  const totalSteps = 3;
+  let step = 0;
+  let filled = 0;
+
+  console.log(`\n  ${CLR.magenta}yorumi-cli uninstall${CLR.reset}\n`);
 
   if (!installRoot.endsWith('YorumiCLI')) {
     throw new Error(`Refusing to uninstall unexpected path: ${installRoot}`);
   }
 
   if (!existsSync(installRoot)) {
-    console.log(`Yorumi CLI is not installed at ${installRoot}`);
+    console.log(fmtLabel('warning', CLR.bgYellow, `Yorumi CLI is not installed at ${installRoot}`));
     return;
   }
 
   if (!yes) {
     const answer = (await ask(`Remove Yorumi CLI from ${installRoot}? Type "yes" to continue: `)).toLowerCase();
     if (answer !== 'yes') {
-      console.log('Uninstall cancelled.');
+      console.log(fmtLabel('warning', CLR.bgYellow, 'Uninstall cancelled.'));
       return;
     }
   }
 
-  removePathLater(installRoot);
-  console.log(`Yorumi CLI uninstall scheduled for ${installRoot}`);
-  console.log('Close and reopen your terminal after it finishes.');
+  drawBar(filled, 'Checking installation...');
+  step++;
+  filled = await animateBar(filled, step, totalSteps, 'Checking installation');
+  msgAbove(filled, 'Checking installation', fmtLabel('success', CLR.bgGreen, 'Yorumi CLI installation found'));
+
+  drawBar(filled, 'Starting cleanup helper...');
+  removePathLater(installRoot, binPath);
+  step++;
+  filled = await animateBar(filled, step, totalSteps, 'Starting cleanup helper');
+  msgAbove(filled, 'Starting cleanup helper', fmtLabel('success', CLR.bgGreen, 'Cleanup helper started'));
+
+  step++;
+  filled = await animateBar(filled, step, totalSteps, 'Complete');
+  process.stdout.write(`\r${ERASE_LINE}`);
+  console.log('');
+  console.log(fmtLabel('success', CLR.bgGreen, 'Uninstall complete!'));
+  console.log(fmtLabel('note', CLR.bgGray, 'Close and reopen your terminal to refresh PATH.'));
+  console.log('');
 };
 
 const CLR = {
