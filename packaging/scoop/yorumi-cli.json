@@ -4,7 +4,7 @@
   "homepage": "https://github.com/davenarchives/yorumi-cli",
   "license": "MIT",
   "url": "https://github.com/davenarchives/yorumi-cli/archive/refs/tags/v0.1.1.zip",
-  "hash": "PLACEHOLDER_SHA256",
+  "hash": "44bbfa5ed3d606c33311969fafdcdce67f7dd0cdc43716a1da93abeed51bdf3e",
   "extract_dir": "yorumi-cli-0.1.1",
   "depends": "nodejs",
   "bin": "yorumi-cli.cmd",
