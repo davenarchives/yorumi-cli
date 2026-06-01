@@ -70,6 +70,7 @@ yorumi-cli --uninstall
 
 Download mode requires `ffmpeg`. On Windows, the CLI can install it with Winget when needed. Use `--yes` to auto-confirm ffmpeg installation, overwrite an existing output file, or skip the uninstall confirmation.
 Downloads are saved to `~/Downloads/Yorumi` by default. Override that with `--output` or `YORUMI_DOWNLOAD_DIR`.
+Downloads convert audio to AAC by default for better Windows player compatibility. Use `--copy-audio` to keep the source audio track untouched.
 
 ## Interactive Menu
 

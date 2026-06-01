@@ -53,6 +53,7 @@ interface CliOptions {
   printUrl: boolean;
   directPlay: boolean;
   download: boolean;
+  copyAudio: boolean;
   update: boolean;
   uninstall: boolean;
   yes: boolean;
@@ -88,6 +89,7 @@ const parseArgs = (argv: string[]): CliOptions => {
     printUrl: false,
     directPlay: false,
     download: false,
+    copyAudio: false,
     update: false,
     uninstall: false,
     yes: false,
@@ -154,6 +156,11 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
+    if (arg === '--copy-audio') {
+      options.copyAudio = true;
+      continue;
+    }
+
     if (arg === '--direct') {
       options.directPlay = true;
       continue;
@@ -211,6 +218,7 @@ Options:
   -i, --anime-index <num>  Pick a search result without prompting, 1-based
   -d, --download           Download selected anime episode(s) instead of opening mpv
   -o, --output <dir>       Download output directory (default: ~/Downloads/Yorumi)
+      --copy-audio         Keep source audio instead of converting to AAC
       --direct             Ask Yorumi for a direct stream URL when possible
       --print-url          Print resolved stream URL(s) and exit
   -u, --update             Update Yorumi CLI and its dependencies
@@ -600,6 +608,7 @@ const downloadEpisode = async (
   referer: string,
   overwrite: boolean,
   label: string,
+  copyAudio: boolean,
 ) => {
   const ffmpeg = await requireFfmpegCommand(overwrite);
   const isHls = /\.m3u8(?:[?#]|$)/i.test(url);
@@ -623,10 +632,13 @@ const downloadEpisode = async (
     `Referer: ${referer}\r\nUser-Agent: Mozilla/5.0\r\n`,
     '-i',
     url,
-    '-c',
+    '-c:v',
     'copy',
-    '-bsf:a',
-    'aac_adtstoasc',
+    '-c:a',
+    copyAudio ? 'copy' : 'aac',
+    ...(copyAudio ? ['-bsf:a', 'aac_adtstoasc'] : ['-b:a', '192k', '-ac', '2']),
+    '-movflags',
+    '+faststart',
     outputPath,
   ];
 
@@ -713,6 +725,7 @@ const downloadEpisodes = async (
   resolved: PlayableStreamPayload[],
   outputDir: string,
   overwrite: boolean,
+  copyAudio: boolean,
 ) => {
   const targetDir = resolve(outputDir);
   mkdirSync(targetDir, { recursive: true });
@@ -725,7 +738,7 @@ const downloadEpisodes = async (
     const outputPath = join(targetDir, fileName);
 
     console.log(`Downloading episode ${episode.episodeNumber} to ${outputPath}`);
-    await downloadEpisode(playable.url, outputPath, referer, overwrite, `Episode ${episode.episodeNumber}`);
+    await downloadEpisode(playable.url, outputPath, referer, overwrite, `Episode ${episode.episodeNumber}`, copyAudio);
   }
 
   console.log('Download complete.');
@@ -1001,7 +1014,7 @@ const main = async () => {
   }
 
   if (options.download) {
-    await downloadEpisodes(anime, selectedEpisodes, resolved, options.outputDir, options.yes);
+    await downloadEpisodes(anime, selectedEpisodes, resolved, options.outputDir, options.yes, options.copyAudio);
     return;
   }
 
