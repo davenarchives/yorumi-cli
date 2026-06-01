@@ -373,6 +373,20 @@ const requireFfmpegCommand = async (yes: boolean) => {
   throw new Error('ffmpeg was not found. Install it with: winget install --id Gyan.FFmpeg -e');
 };
 
+const getFfmpegHlsExtensionArgs = (ffmpeg: string) => {
+  const help = spawnSync(ffmpeg, ['-hide_banner', '-h', 'demuxer=hls'], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  const output = `${help.stdout || ''}\n${help.stderr || ''}`;
+
+  if (output.includes('allowed_segment_extensions')) {
+    return ['-allowed_segment_extensions', 'ALL'];
+  }
+
+  return ['-allowed_extensions', 'ALL'];
+};
+
 const resolvePlayerCommand = async (player: string) => {
   if (existsSync(player)) return player;
   if (await commandExists(player)) return player;
@@ -524,6 +538,7 @@ const downloadEpisode = async (
 ) => {
   const ffmpeg = await requireFfmpegCommand(overwrite);
   const isHls = /\.m3u8(?:[?#]|$)/i.test(url);
+  const hlsExtensionArgs = isHls ? getFfmpegHlsExtensionArgs(ffmpeg) : [];
 
   if (existsSync(outputPath) && !overwrite) {
     throw new Error(`Output already exists: ${outputPath}. Re-run with --yes to overwrite.`);
@@ -531,7 +546,7 @@ const downloadEpisode = async (
 
   const args = [
     overwrite ? '-y' : '-n',
-    ...(isHls ? ['-allowed_extensions', 'ALL'] : []),
+    ...hlsExtensionArgs,
     '-headers',
     `Referer: ${referer}\r\nUser-Agent: Mozilla/5.0\r\n`,
     '-i',
