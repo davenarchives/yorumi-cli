@@ -381,10 +381,10 @@ const getFfmpegHlsExtensionArgs = (ffmpeg: string) => {
   const output = `${help.stdout || ''}\n${help.stderr || ''}`;
 
   if (output.includes('allowed_segment_extensions')) {
-    return ['-allowed_segment_extensions', 'ALL'];
+    return ['-allowed_segment_extensions', 'ALL', '-extension_picky', '0'];
   }
 
-  return ['-allowed_extensions', 'ALL'];
+  return ['-allowed_extensions', 'ALL', '-extension_picky', '0'];
 };
 
 const resolvePlayerCommand = async (player: string) => {
