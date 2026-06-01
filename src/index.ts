@@ -3,7 +3,7 @@ import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, rmSync } from 'node:fs';
-import { platform } from 'node:os';
+import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 interface AnimeSearchResult {
@@ -61,6 +61,14 @@ interface CliOptions {
 const rl = createInterface({ input, output });
 const DEFAULT_API_BASE = 'https://yorumi-sigma.vercel.app/api';
 
+const getDefaultDownloadDir = () => {
+  const configured = String(process.env.YORUMI_DOWNLOAD_DIR || '').trim();
+  if (configured) return resolve(configured);
+
+  const home = homedir() || process.env.USERPROFILE || process.env.HOME || process.cwd();
+  return join(home, 'Downloads', 'Yorumi');
+};
+
 const getInstallRoot = () => {
   if (platform() === 'win32') {
     return join(process.env.LOCALAPPDATA || process.env.USERPROFILE || '', 'YorumiCLI');
@@ -76,7 +84,7 @@ const parseArgs = (argv: string[]): CliOptions => {
     apiBase: String(process.env.YORUMI_API_URL || DEFAULT_API_BASE).replace(/\/+$/, ''),
     player: String(process.env.YORUMI_PLAYER || 'mpv'),
     windowSize: String(process.env.YORUMI_PLAYER_SIZE || '960x540'),
-    outputDir: 'downloads',
+    outputDir: getDefaultDownloadDir(),
     printUrl: false,
     directPlay: false,
     download: false,
@@ -202,7 +210,7 @@ Options:
   -r, --range <start-end>  Watch an episode range, for example 1-5
   -i, --anime-index <num>  Pick a search result without prompting, 1-based
   -d, --download           Download selected anime episode(s) instead of opening mpv
-  -o, --output <dir>       Download output directory (default: downloads)
+  -o, --output <dir>       Download output directory (default: ~/Downloads/Yorumi)
       --direct             Ask Yorumi for a direct stream URL when possible
       --print-url          Print resolved stream URL(s) and exit
   -u, --update             Update Yorumi CLI and its dependencies
