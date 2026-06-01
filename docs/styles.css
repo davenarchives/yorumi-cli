@@ -162,7 +162,9 @@ button {
 }
 
 .icon-link {
-  gap: 7px;
+  justify-content: center;
+  width: 38px;
+  padding: 0;
 }
 
 ion-icon {
@@ -422,7 +424,8 @@ h2 {
 .install-panel,
 .feature-card,
 .reference-grid article,
-.support-list article {
+.support-list article,
+.docs-main table {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
@@ -431,7 +434,9 @@ h2 {
 
 .tab-list {
   display: flex;
+  align-items: stretch;
   border-bottom: 1px solid var(--line);
+  overflow-x: auto;
 }
 
 .tab-button {
@@ -443,11 +448,13 @@ h2 {
   color: var(--muted);
   cursor: pointer;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .tab-button.active {
   color: var(--text);
   background: var(--surface-2);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .tab-panel {
@@ -467,6 +474,10 @@ pre {
   border-radius: 0 0 8px 8px;
   font-size: 14px;
   line-height: 1.7;
+}
+
+.install-panel > pre {
+  border-radius: 8px;
 }
 
 .prompt {
@@ -555,6 +566,103 @@ td {
   gap: 8px;
 }
 
+.docs-shell {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 820px) 220px;
+  gap: 48px;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 48px clamp(18px, 4vw, 56px) 96px;
+}
+
+.docs-sidebar,
+.docs-toc {
+  position: sticky;
+  top: 96px;
+  align-self: start;
+}
+
+.docs-sidebar {
+  border-right: 1px solid var(--line);
+  padding-right: 22px;
+}
+
+.docs-toc {
+  border-left: 1px solid var(--line);
+  padding-left: 22px;
+}
+
+.sidebar-title {
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.docs-sidebar a,
+.docs-toc a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.docs-sidebar a:hover,
+.docs-toc a:hover,
+.docs-sidebar a.active {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.docs-main {
+  min-width: 0;
+}
+
+.docs-section {
+  padding: 0 0 54px;
+}
+
+.docs-section + .docs-section {
+  padding-top: 42px;
+  border-top: 1px solid var(--line);
+}
+
+.docs-section h1 {
+  margin-bottom: 18px;
+  font-size: clamp(42px, 6vw, 72px);
+  letter-spacing: -0.06em;
+}
+
+.docs-section h2 {
+  margin-bottom: 18px;
+  font-size: clamp(30px, 4vw, 44px);
+}
+
+.docs-section h3 {
+  margin: 30px 0 12px;
+  font-size: 19px;
+}
+
+.docs-lede,
+.docs-section p {
+  color: var(--muted);
+}
+
+.docs-section .install-panel,
+.docs-section pre,
+.docs-main table {
+  margin: 18px 0 26px;
+}
+
+.docs-main table {
+  overflow: hidden;
+  box-shadow: none;
+}
+
 @media (max-width: 1050px) {
   .hero-section {
     grid-template-columns: 1fr;
@@ -603,5 +711,27 @@ td {
     position: static;
     width: 100%;
     margin-top: 16px;
+  }
+
+  .docs-shell {
+    display: block;
+    padding: 28px 18px 72px;
+  }
+
+  .docs-sidebar,
+  .docs-toc {
+    position: static;
+    border: 0;
+    padding: 0;
+  }
+
+  .docs-sidebar {
+    margin-bottom: 32px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .docs-toc {
+    display: none;
   }
 }

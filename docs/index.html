@@ -17,11 +17,9 @@
 
     <nav class="site-nav" aria-label="Primary navigation">
       <a href="#install">Install</a>
-      <a href="#usage">Usage</a>
-      <a href="#reference">Reference</a>
+      <a href="./docs.html">Docs</a>
       <a class="icon-link" href="https://github.com/davenarchives/yorumi-cli" rel="noreferrer" target="_blank" aria-label="Open GitHub repository">
         <ion-icon name="logo-github"></ion-icon>
-        <span>GitHub</span>
       </a>
       <button class="theme-toggle" type="button" aria-label="Toggle color theme" data-theme-toggle>
         <ion-icon name="sunny-outline"></ion-icon>
@@ -41,7 +39,7 @@
           <a class="button primary" href="#install">Get started</a>
           <a class="button secondary" href="https://github.com/davenarchives/yorumi-cli" rel="noreferrer" target="_blank">
             <ion-icon name="logo-github"></ion-icon>
-            View on GitHub
+            Repository
           </a>
         </div>
         <dl class="quick-stats" aria-label="Yorumi CLI capabilities">
@@ -66,12 +64,12 @@
             <span class="dot"></span>
             <span class="window-title">Windows PowerShell</span>
           </div>
-          <pre><code><span>PS C:\Users\daven&gt; </span><strong>yorumi-cli -e 1 "frieren"</strong>
+          <pre><code><span>C:\Users\daven&gt; </span><strong>yorumi-cli -e 1 "frieren"</strong>
 Searching Yorumi for "frieren"...
 Fetching episodes for Frieren: Beyond Journey's End...
 Resolving playable stream for episode 1...
 Opening Frieren: Beyond Journey's End Episode 1 in mpv (1080p SUB)...
-PS C:\Users\daven&gt;</code></pre>
+C:\Users\daven&gt;</code></pre>
         </article>
 
         <article class="player-window">
@@ -94,7 +92,7 @@ PS C:\Users\daven&gt;</code></pre>
             <span class="dot"></span>
             <span class="window-title">Download anime</span>
           </div>
-          <pre><code><span>PS C:\Users\daven&gt; </span><strong>yorumi-cli -d -e 3 "wistoria"</strong>
+          <pre><code><span>C:\Users\daven&gt; </span><strong>yorumi-cli -d -e 3 "wistoria"</strong>
 Resolving playable stream for episode 3...
 Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
 [████████████████░░░░░░░░] 66% | Episode 3 | media 0:15:34</code></pre>
@@ -115,10 +113,10 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
           <button class="tab-button" type="button" data-tab-button="unix">macOS / Linux</button>
         </div>
         <div class="tab-panel active" data-tab-panel="windows">
-          <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
+          <pre><code><span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
         </div>
         <div class="tab-panel" data-tab-panel="unix">
-          <pre><code><span class="prompt">$</span> <span class="cmd">curl -sL https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.sh | bash</span></code></pre>
+          <pre><code><span class="cmd">curl -sL https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.sh | bash</span></code></pre>
         </div>
       </div>
     </section>
@@ -132,13 +130,13 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
         <article class="feature-card">
           <h3>Watch anime</h3>
           <p>Open an episode in mpv using Yorumi's hosted stream resolver.</p>
-          <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -e 1 "frieren"</span></code></pre>
+          <pre><code><span class="cmd">yorumi-cli -e 1 "frieren"</span></code></pre>
         </article>
         <article class="feature-card">
           <h3>Download anime</h3>
           <p>Save MP4 files to <code>~/Downloads/Yorumi</code>. Audio is converted to AAC by default.</p>
-          <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -d -e 1 "frieren"</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -d -r "1-5" "naruto"</span></code></pre>
+          <pre><code><span class="cmd">yorumi-cli -d -e 1 "frieren"</span>
+<span class="cmd">yorumi-cli -d -r "1-5" "naruto"</span></code></pre>
         </article>
       </div>
     </section>
