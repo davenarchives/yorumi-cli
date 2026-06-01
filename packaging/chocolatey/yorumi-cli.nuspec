@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>yorumi-cli</id>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
     <title>Yorumi CLI</title>
     <authors>Daven Austhine Sumagang</authors>
     <owners>davenarchives</owners>
@@ -23,7 +23,7 @@ Runtime tools:
 - mpv is used for playback.
 - ffmpeg is used for downloads.
     </description>
-    <releaseNotes>https://github.com/davenarchives/yorumi-cli/releases/tag/v0.1.1</releaseNotes>
+    <releaseNotes>https://github.com/davenarchives/yorumi-cli/releases/tag/v0.1.2</releaseNotes>
     <dependencies>
       <dependency id="chocolatey" version="2.0.0" />
     </dependencies>

@@ -1,5 +1,6 @@
 param(
-    [string]$Repo = "davenarchives/yorumi-cli"
+    [string]$Repo = "davenarchives/yorumi-cli",
+    [string]$Ref = "main"
 )
 
 $ErrorActionPreference = "Stop"
@@ -155,12 +156,17 @@ function Assert-SafeInstallPath($path) {
 function Install-RepoFromZip {
     param(
         [string]$Repo,
+        [string]$Ref,
         [string]$Destination
     )
 
     Draw-Progress $script:currentUnits "Downloading CLI archive"
 
-    $archiveUrl = "https://github.com/$Repo/archive/refs/heads/main.zip"
+    $archiveUrl = if ($Ref -eq "main") {
+        "https://github.com/$Repo/archive/refs/heads/main.zip"
+    } else {
+        "https://github.com/$Repo/archive/refs/tags/$Ref.zip"
+    }
     $workDir = Join-Path $installRoot ("download-" + [guid]::NewGuid().ToString("N"))
     $zipPath = Join-Path $workDir "yorumi-cli.zip"
     $extractDir = Join-Path $workDir "extract"
@@ -576,17 +582,17 @@ if (Test-Path $repoDir) {
         Write-Success "CLI repo updated"
     } else {
         Write-Info "CLI install already exists, replacing it from GitHub archive"
-        Install-RepoFromZip $Repo $repoDir
+        Install-RepoFromZip $Repo $Ref $repoDir
         Write-Success "CLI archive installed"
     }
 } else {
     if ($gitAvailable) {
         Write-Info "Cloning CLI repo from github.com/$Repo"
-        Invoke-ProgressCommand "Cloning CLI repository" "git" @("clone", "https://github.com/$Repo.git", $repoDir) $installRoot
+        Invoke-ProgressCommand "Cloning CLI repository" "git" @("clone", "--branch", $Ref, "--single-branch", "https://github.com/$Repo.git", $repoDir) $installRoot
         Write-Success "CLI repo cloned"
     } else {
         Write-Info "Downloading CLI archive from github.com/$Repo"
-        Install-RepoFromZip $Repo $repoDir
+        Install-RepoFromZip $Repo $Ref $repoDir
         Write-Success "CLI archive installed"
     }
 }
