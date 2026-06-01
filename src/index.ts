@@ -515,6 +515,7 @@ const downloadEpisode = async (
   overwrite: boolean,
 ) => {
   const ffmpeg = await requireFfmpegCommand(overwrite);
+  const isHls = /\.m3u8(?:[?#]|$)/i.test(url);
 
   if (existsSync(outputPath) && !overwrite) {
     throw new Error(`Output already exists: ${outputPath}. Re-run with --yes to overwrite.`);
@@ -522,6 +523,7 @@ const downloadEpisode = async (
 
   const args = [
     overwrite ? '-y' : '-n',
+    ...(isHls ? ['-allowed_extensions', 'ALL'] : []),
     '-headers',
     `Referer: ${referer}\r\nUser-Agent: Mozilla/5.0\r\n`,
     '-i',
@@ -541,7 +543,8 @@ const downloadEpisode = async (
         resolveDownload();
         return;
       }
-      reject(new Error(`ffmpeg exited with code ${code}`));
+      const signedCode = typeof code === 'number' && code > 0x7fffffff ? code - 0x100000000 : code;
+      reject(new Error(`ffmpeg exited with code ${signedCode ?? code}.`));
     });
   });
 };
