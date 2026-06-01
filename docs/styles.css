@@ -298,7 +298,9 @@ h1 {
 
 .hero-visual {
   position: relative;
-  min-height: 500px;
+  justify-self: end;
+  width: min(100%, 720px);
+  min-height: 560px;
 }
 
 .terminal-window,
@@ -312,21 +314,25 @@ h1 {
 }
 
 .terminal-watch {
-  width: min(650px, 100%);
+  position: relative;
+  z-index: 1;
+  width: min(620px, 90%);
 }
 
 .terminal-download {
   position: absolute;
-  right: 0;
-  bottom: 22px;
-  width: min(500px, 78%);
+  z-index: 3;
+  right: 18px;
+  top: 330px;
+  width: min(430px, 64%);
 }
 
 .player-window {
   position: absolute;
+  z-index: 2;
   right: 0;
-  top: 176px;
-  width: min(560px, 84%);
+  top: 230px;
+  width: min(560px, 82%);
 }
 
 .window-bar {
@@ -352,9 +358,9 @@ h1 {
 .terminal-window pre {
   margin: 0;
   padding: 18px 20px;
-  overflow: auto;
+  overflow: hidden;
   white-space: pre-wrap;
-  font-size: clamp(11px, 0.95vw, 13px);
+  font-size: clamp(10px, 0.82vw, 12px);
   line-height: 1.45;
 }
 
