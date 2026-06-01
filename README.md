@@ -56,7 +56,7 @@ yorumi-cli --episode 1 "Frieren"
 yorumi-cli -r "1-5" "Naruto"
 yorumi-cli --range "1-5" "Naruto"
 yorumi-cli "one piece" --episode 1120
-yorumi-cli --download --episode 1 "Frieren"
+yorumi-cli -d --episode 1 "Frieren"
 yorumi-cli --download --range "1-5" "Naruto" --output "D:\Anime"
 ```
 

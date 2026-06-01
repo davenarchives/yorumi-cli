@@ -141,12 +141,12 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
-    if (arg === '--download') {
+    if (arg === '--download' || arg === '-d') {
       options.download = true;
       continue;
     }
 
-    if (arg === '--direct' || arg === '-d') {
+    if (arg === '--direct') {
       options.directPlay = true;
       continue;
     }
@@ -194,13 +194,13 @@ Examples:
   yorumi-cli "One Piece"
   yorumi-cli --episode 1 "Frieren"
   yorumi-cli --range "1-5" "Naruto"
-  yorumi-cli --download --episode 1 "Frieren"
+  yorumi-cli -d --episode 1 "Frieren"
 
 Options:
   -e, --episode <number>   Pick an episode without prompting
   -r, --range <start-end>  Watch an episode range, for example 1-5
   -i, --anime-index <num>  Pick a search result without prompting, 1-based
-      --download           Download selected anime episode(s) instead of opening mpv
+  -d, --download           Download selected anime episode(s) instead of opening mpv
   -o, --output <dir>       Download output directory (default: downloads)
       --direct             Ask Yorumi for a direct stream URL when possible
       --print-url          Print resolved stream URL(s) and exit
