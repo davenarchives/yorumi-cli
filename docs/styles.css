@@ -192,14 +192,14 @@ ion-icon {
 }
 
 .hero-section {
-  min-height: calc(100vh - 68px);
+  min-height: calc(100svh - 68px);
   display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(420px, 1.18fr);
-  gap: clamp(36px, 5vw, 72px);
+  grid-template-columns: minmax(320px, 0.86fr) minmax(440px, 1.14fr);
+  gap: clamp(32px, 4.5vw, 64px);
   align-items: center;
-  max-width: 1360px;
+  max-width: 1220px;
   margin: 0 auto;
-  padding: clamp(56px, 8vw, 120px) clamp(18px, 4vw, 56px) 72px;
+  padding: clamp(36px, 5vw, 72px) clamp(18px, 4vw, 48px) 48px;
 }
 
 .eyebrow {
@@ -222,24 +222,24 @@ h1, h2, h3, p {
 }
 
 h1 {
-  max-width: 760px;
-  margin-bottom: 22px;
-  font-size: clamp(52px, 8vw, 112px);
-  line-height: 0.88;
-  letter-spacing: -0.08em;
+  max-width: 620px;
+  margin-bottom: 18px;
+  font-size: clamp(48px, 6vw, 92px);
+  line-height: 0.9;
+  letter-spacing: -0.07em;
 }
 
 .hero-lede {
-  max-width: 620px;
+  max-width: 500px;
   color: var(--muted);
-  font-size: clamp(17px, 1.5vw, 21px);
+  font-size: clamp(16px, 1.25vw, 18px);
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 32px 0;
+  margin: 26px 0;
 }
 
 .button {
@@ -272,13 +272,13 @@ h1 {
 .quick-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  max-width: 620px;
+  max-width: 500px;
   gap: 12px;
   margin: 0;
 }
 
 .quick-stats div {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 80%, transparent);
@@ -298,7 +298,7 @@ h1 {
 
 .hero-visual {
   position: relative;
-  min-height: 640px;
+  min-height: 500px;
 }
 
 .terminal-window,
@@ -312,21 +312,21 @@ h1 {
 }
 
 .terminal-watch {
-  width: min(760px, 100%);
+  width: min(650px, 100%);
 }
 
 .terminal-download {
   position: absolute;
   right: 0;
-  bottom: 24px;
-  width: min(620px, 76%);
+  bottom: 22px;
+  width: min(500px, 78%);
 }
 
 .player-window {
   position: absolute;
   right: 0;
-  top: 210px;
-  width: min(720px, 88%);
+  top: 176px;
+  width: min(560px, 84%);
 }
 
 .window-bar {
@@ -351,10 +351,10 @@ h1 {
 
 .terminal-window pre {
   margin: 0;
-  padding: 20px 22px;
+  padding: 18px 20px;
   overflow: auto;
   white-space: pre-wrap;
-  font-size: clamp(13px, 1.25vw, 16px);
+  font-size: clamp(11px, 0.95vw, 13px);
   line-height: 1.45;
 }
 
@@ -388,7 +388,7 @@ h1 {
   grid-template-columns: auto 1fr auto;
   gap: 12px;
   align-items: center;
-  padding: 14px 18px;
+  padding: 12px 16px;
   background: #141416;
   color: #f4f4f5;
   font-size: 13px;
@@ -448,17 +448,19 @@ h2 {
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--line);
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .tab-button {
-  min-height: 48px;
-  padding: 0 18px;
+  flex: 0 1 auto;
+  min-height: 42px;
+  padding: 0 16px;
   border: 0;
   border-right: 1px solid var(--line);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  font-size: 14px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -486,8 +488,8 @@ pre {
   border-radius: 0 0 8px 8px;
   font-size: 14px;
   line-height: 1.7;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
+  overflow-wrap: normal;
 }
 
 .code-window {
@@ -500,8 +502,8 @@ pre {
 .code-titlebar {
   display: flex;
   align-items: center;
-  height: 44px;
-  padding: 0 18px;
+  height: 40px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
   background: #20212a;
 }
@@ -516,8 +518,8 @@ html[data-theme="light"] .code-titlebar {
 }
 
 .window-dots span {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   background: #4a4b55;
 }
@@ -532,21 +534,22 @@ html[data-theme="light"] .code-body {
 }
 
 .code-window pre {
-  padding: 24px 58px 24px 28px;
+  padding: 20px 58px 20px 24px;
   border-radius: 0;
   background: transparent;
-  font-size: clamp(12px, 1.05vw, 14px);
+  font-size: clamp(10px, 0.96vw, 13px);
+  line-height: 1.65;
 }
 
 .copy-button {
   position: absolute;
   top: 50%;
-  right: 14px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   border: 1px solid rgba(255, 255, 255, 0.36);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.12);
@@ -570,7 +573,7 @@ html[data-theme="light"] .code-body {
 }
 
 .copy-button ion-icon {
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .prompt {
@@ -746,9 +749,15 @@ td {
 }
 
 .docs-section .install-panel,
-.docs-section .code-window,
+.docs-section > .code-window,
 .docs-main table {
   margin: 18px 0 26px;
+}
+
+.install-panel .code-window {
+  margin: 0;
+  border: 0;
+  border-radius: 0 0 8px 8px;
 }
 
 .docs-main table {
