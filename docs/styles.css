@@ -34,6 +34,14 @@ html[data-theme="light"] {
   --shadow: rgba(24, 24, 27, 0.12);
 }
 
+html[data-theme="light"] body {
+  background:
+    linear-gradient(90deg, rgba(24,24,27,0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(24,24,27,0.06) 1px, transparent 1px),
+    var(--bg);
+  background-size: 72px 72px;
+}
+
 * { box-sizing: border-box; }
 
 html {
@@ -133,9 +141,9 @@ button {
 .site-nav > a:not(.icon-link),
 .icon-link,
 .theme-toggle {
-  height: 48px;
+  height: 40px;
   border-radius: 8px;
-  transition: background-color 180ms ease, color 180ms ease;
+  transition: color 180ms ease;
 }
 
 .site-nav > a:not(.icon-link) {
@@ -148,30 +156,81 @@ button {
 .icon-link:hover,
 .theme-toggle:hover {
   color: var(--text);
-  background: var(--surface);
+  background: transparent;
 }
 
 .icon-link {
   justify-content: center;
-  width: 48px;
+  width: 40px;
   padding: 0;
   border: 1px solid transparent;
   color: var(--muted);
 }
 
 ion-icon {
-  font-size: 24px;
+  font-size: 22px;
   pointer-events: none;
 }
 
 .theme-toggle {
-  width: 48px;
+  width: 40px;
   padding: 0;
   justify-content: center;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--text);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
   cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.theme-icon,
+.theme-icon svg,
+.github-icon,
+.github-icon svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+}
+
+.theme-icon {
+  animation: theme-icon-fade 140ms ease;
+}
+
+.theme-icon svg,
+.github-icon svg {
+  fill: currentColor;
+}
+
+@keyframes theme-icon-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.86) rotate(-16deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root),
+html[data-theme="dark"]::view-transition-new(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root),
+html[data-theme="dark"]::view-transition-old(root) {
+  z-index: 9999;
 }
 
 .hero-section {
@@ -311,9 +370,9 @@ h1 {
 .terminal-download {
   position: absolute;
   z-index: 3;
-  left: 10%;
+  left: 34%;
   top: clamp(130px, 26%, 170px);
-  width: min(420px, 62%);
+  width: min(520px, 76%);
 }
 
 .player-window {
@@ -351,6 +410,11 @@ h1 {
   white-space: pre-wrap;
   font-size: clamp(9px, 0.72vw, 11px);
   line-height: 1.45;
+}
+
+.terminal-download pre {
+  white-space: pre;
+  overflow: visible;
 }
 
 .terminal-window strong {
