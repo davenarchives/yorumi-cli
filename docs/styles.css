@@ -480,16 +480,97 @@ h2 {
 pre {
   margin: 0;
   padding: 22px 24px;
-  overflow: auto;
+  overflow-x: hidden;
   color: var(--code-text);
   background: var(--code-bg);
   border-radius: 0 0 8px 8px;
   font-size: 14px;
   line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.install-panel > pre {
+.code-window {
+  overflow: hidden;
+  border: 1px solid var(--line);
   border-radius: 8px;
+  background: color-mix(in srgb, var(--code-bg) 92%, var(--surface));
+}
+
+.code-titlebar {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line);
+  background: #20212a;
+}
+
+html[data-theme="light"] .code-titlebar {
+  background: #242631;
+}
+
+.window-dots {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.window-dots span {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #4a4b55;
+}
+
+.code-body {
+  position: relative;
+  background: #252633;
+}
+
+html[data-theme="light"] .code-body {
+  background: #252633;
+}
+
+.code-window pre {
+  padding: 24px 58px 24px 28px;
+  border-radius: 0;
+  background: transparent;
+  font-size: clamp(12px, 1.05vw, 14px);
+}
+
+.copy-button {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.copy-button:hover,
+.copy-button:focus-visible,
+.code-body:hover .copy-button {
+  opacity: 1;
+}
+
+.copy-button:hover,
+.copy-button:focus-visible {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.copy-button ion-icon {
+  font-size: 24px;
 }
 
 .prompt {
@@ -665,7 +746,7 @@ td {
 }
 
 .docs-section .install-panel,
-.docs-section pre,
+.docs-section .code-window,
 .docs-main table {
   margin: 18px 0 26px;
 }

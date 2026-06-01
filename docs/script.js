@@ -43,3 +43,43 @@ document.querySelectorAll('[data-tabs]').forEach((tabs) => {
     });
   });
 });
+
+document.querySelectorAll('pre').forEach((pre) => {
+  if (pre.closest('.terminal-window') || pre.closest('.code-window')) return;
+
+  const codeWindow = document.createElement('div');
+  codeWindow.className = 'code-window';
+
+  const titlebar = document.createElement('div');
+  titlebar.className = 'code-titlebar';
+
+  const dots = document.createElement('div');
+  dots.className = 'window-dots';
+  dots.setAttribute('aria-hidden', 'true');
+  dots.innerHTML = '<span></span><span></span><span></span>';
+  titlebar.appendChild(dots);
+
+  const body = document.createElement('div');
+  body.className = 'code-body';
+
+  const copyButton = document.createElement('button');
+  copyButton.className = 'copy-button';
+  copyButton.type = 'button';
+  copyButton.setAttribute('aria-label', 'Copy command');
+  copyButton.innerHTML = '<ion-icon name="copy-outline"></ion-icon>';
+
+  pre.parentNode.insertBefore(codeWindow, pre);
+  body.appendChild(pre);
+  body.appendChild(copyButton);
+  codeWindow.appendChild(titlebar);
+  codeWindow.appendChild(body);
+
+  copyButton.addEventListener('click', async () => {
+    const commandText = pre.textContent.trim();
+    await navigator.clipboard.writeText(commandText);
+    copyButton.innerHTML = '<ion-icon name="checkmark-outline"></ion-icon>';
+    window.setTimeout(() => {
+      copyButton.innerHTML = '<ion-icon name="copy-outline"></ion-icon>';
+    }, 1200);
+  });
+});
