@@ -387,6 +387,70 @@ const getFfmpegHlsExtensionArgs = (ffmpeg: string) => {
   return ['-allowed_extensions', 'ALL', '-extension_picky', '0'];
 };
 
+const probeHlsDurationMs = async (url: string, referer: string) => {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Referer: referer,
+        'User-Agent': 'Mozilla/5.0',
+      },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) return 0;
+
+    const playlist = await response.text();
+    const seconds = [...playlist.matchAll(/^#EXTINF:([\d.]+)/gim)]
+      .reduce((sum, match) => sum + Number(match[1] || 0), 0);
+
+    return Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const probeDurationMs = async (ffmpeg: string, url: string, referer: string, hlsExtensionArgs: string[]) => {
+  if (/\.m3u8(?:[?#]|$)/i.test(url)) {
+    const hlsDuration = await probeHlsDurationMs(url, referer);
+    if (hlsDuration > 0) return hlsDuration;
+  }
+
+  const result = spawnSync(ffmpeg, [
+    '-hide_banner',
+    '-loglevel',
+    'info',
+    ...hlsExtensionArgs,
+    '-headers',
+    `Referer: ${referer}\r\nUser-Agent: Mozilla/5.0\r\n`,
+    '-i',
+    url,
+    '-f',
+    'null',
+    '-',
+  ], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+    timeout: 15_000,
+  });
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+  const match = output.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
+  if (!match) return 0;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  return Math.round(((hours * 60 * 60) + (minutes * 60) + seconds) * 1000);
+};
+
+const formatClock = (ms: number) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
 const resolvePlayerCommand = async (player: string) => {
   if (existsSync(player)) return player;
   if (await commandExists(player)) return player;
@@ -535,10 +599,12 @@ const downloadEpisode = async (
   outputPath: string,
   referer: string,
   overwrite: boolean,
+  label: string,
 ) => {
   const ffmpeg = await requireFfmpegCommand(overwrite);
   const isHls = /\.m3u8(?:[?#]|$)/i.test(url);
   const hlsExtensionArgs = isHls ? getFfmpegHlsExtensionArgs(ffmpeg) : [];
+  const durationMs = await probeDurationMs(ffmpeg, url, referer, hlsExtensionArgs);
 
   if (existsSync(outputPath) && !overwrite) {
     throw new Error(`Output already exists: ${outputPath}. Re-run with --yes to overwrite.`);
@@ -546,6 +612,12 @@ const downloadEpisode = async (
 
   const args = [
     overwrite ? '-y' : '-n',
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-nostats',
+    '-progress',
+    'pipe:1',
     ...hlsExtensionArgs,
     '-headers',
     `Referer: ${referer}\r\nUser-Agent: Mozilla/5.0\r\n`,
@@ -559,13 +631,76 @@ const downloadEpisode = async (
   ];
 
   await new Promise<void>((resolveDownload, reject) => {
-    const child = spawn(ffmpeg, args, { stdio: 'inherit' });
+    let lastPercent = 0;
+    let lastOutTimeMs = 0;
+    let progressBuffer = '';
+    const startedAt = Date.now();
+
+    const renderProgress = (percent: number, outTimeMs: number) => {
+      lastOutTimeMs = Math.max(lastOutTimeMs, outTimeMs);
+      const elapsed = formatClock(Date.now() - startedAt);
+      const mediaTime = lastOutTimeMs > 0 ? ` | media ${formatClock(lastOutTimeMs)}` : '';
+      if (durationMs > 0) {
+        lastPercent = Math.max(lastPercent, Math.min(100, Math.floor(percent)));
+        const filled = Math.min(BAR_WIDTH, Math.floor((lastPercent / 100) * BAR_WIDTH));
+        drawBar(filled, `${label} ${lastPercent}% | elapsed ${elapsed}${mediaTime}`);
+        return;
+      }
+
+      const pulse = Math.floor(((Date.now() - startedAt) / 250) % BAR_WIDTH) + 1;
+      drawBar(pulse, `${label} downloading | elapsed ${elapsed}${mediaTime}`);
+    };
+
+    const child = spawn(ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+    const progressTimer = setInterval(() => {
+      if (durationMs > 0) {
+        renderProgress((lastOutTimeMs / durationMs) * 100, lastOutTimeMs);
+        return;
+      }
+
+      const elapsedMs = Date.now() - startedAt;
+      const syntheticPercent = Math.min(99, Math.floor(elapsedMs / 1000) % 100);
+      renderProgress(Math.max(lastPercent, syntheticPercent), lastOutTimeMs);
+    }, 250);
+
+    renderProgress(0, 0);
+
+    child.stdout?.on('data', (chunk) => {
+      progressBuffer += chunk.toString();
+      const lines = progressBuffer.split(/\r?\n/);
+      progressBuffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const [key, rawValue] = line.split('=');
+        if (key !== 'out_time_ms' && key !== 'out_time_us') continue;
+
+        const value = Number(rawValue);
+        if (!Number.isFinite(value)) continue;
+
+        const outTimeMs = value / 1000;
+        const percent = durationMs > 0 ? (outTimeMs / durationMs) * 100 : lastPercent;
+        renderProgress(percent, outTimeMs);
+      }
+    });
+
+    let errorOutput = '';
+    child.stderr?.on('data', (chunk) => {
+      errorOutput += chunk.toString();
+    });
+
     child.once('error', reject);
     child.once('exit', (code) => {
+      clearInterval(progressTimer);
       if (code === 0) {
+        drawBar(BAR_WIDTH, `${label} 100% | saved`);
+        process.stdout.write(`\r${ERASE_LINE}`);
+        console.log(fmtLabel('success', CLR.bgGreen, `${label} saved`));
         resolveDownload();
         return;
       }
+      process.stdout.write(`\r${ERASE_LINE}`);
+      if (errorOutput.trim()) console.error(errorOutput.trim());
       const signedCode = typeof code === 'number' && code > 0x7fffffff ? code - 0x100000000 : code;
       reject(new Error(`ffmpeg exited with code ${signedCode ?? code}.`));
     });
@@ -590,7 +725,7 @@ const downloadEpisodes = async (
     const outputPath = join(targetDir, fileName);
 
     console.log(`Downloading episode ${episode.episodeNumber} to ${outputPath}`);
-    await downloadEpisode(playable.url, outputPath, referer, overwrite);
+    await downloadEpisode(playable.url, outputPath, referer, overwrite, `Episode ${episode.episodeNumber}`);
   }
 
   console.log('Download complete.');
