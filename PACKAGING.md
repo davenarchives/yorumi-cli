@@ -27,9 +27,11 @@ winget install Yorumi.YorumiCLI
 Required:
 
 1. Create a GitHub release with a version tag.
-2. Provide a stable installer artifact or zip.
+2. Provide a stable silent installer artifact or true portable executable.
 3. Submit a manifest to `microsoft/winget-pkgs`.
 4. Use package identifier `Yorumi.YorumiCLI`.
+
+Current status: blocked. The current PowerShell installer works for manual installs and Chocolatey, but Winget needs a silent EXE/MSI/MSIX or portable executable. See `packaging/winget/README.md`.
 
 ## Scoop
 
@@ -43,7 +45,10 @@ Required:
 
 1. Create a Scoop manifest JSON.
 2. Point it at a GitHub release zip.
-3. Publish it in your own bucket or submit to a bucket.
+3. Fill in the release zip SHA256.
+4. Publish it in your own bucket or submit to a bucket.
+
+Current manifest: `packaging/scoop/yorumi-cli.json`.
 
 ## Chocolatey
 
@@ -58,6 +63,8 @@ Required:
 1. Create a Chocolatey package.
 2. Include install/uninstall scripts.
 3. Push it to Chocolatey Community Repository.
+
+Current package scaffold: `packaging/chocolatey/`.
 
 ## npm
 
