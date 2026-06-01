@@ -645,22 +645,34 @@ const downloadEpisode = async (
   await new Promise<void>((resolveDownload, reject) => {
     let lastPercent = 0;
     let lastOutTimeMs = 0;
+    let lastRenderAt = 0;
+    let lastRenderedText = '';
     let progressBuffer = '';
     const startedAt = Date.now();
 
-    const renderProgress = (percent: number, outTimeMs: number) => {
+    const renderProgress = (percent: number, outTimeMs: number, force = false) => {
       lastOutTimeMs = Math.max(lastOutTimeMs, outTimeMs);
       const elapsed = formatClock(Date.now() - startedAt);
       const mediaTime = lastOutTimeMs > 0 ? ` | media ${formatClock(lastOutTimeMs)}` : '';
+      const now = Date.now();
+
       if (durationMs > 0) {
         lastPercent = Math.max(lastPercent, Math.min(100, Math.floor(percent)));
         const filled = Math.min(BAR_WIDTH, Math.floor((lastPercent / 100) * BAR_WIDTH));
-        drawBar(filled, `${label} ${lastPercent}% | elapsed ${elapsed}${mediaTime}`);
+        const text = `${label} ${lastPercent}% | elapsed ${elapsed}${mediaTime}`;
+        if (!force && text === lastRenderedText && now - lastRenderAt < 500) return;
+        lastRenderedText = text;
+        lastRenderAt = now;
+        drawBar(filled, text);
         return;
       }
 
       const pulse = Math.floor(((Date.now() - startedAt) / 250) % BAR_WIDTH) + 1;
-      drawBar(pulse, `${label} downloading | elapsed ${elapsed}${mediaTime}`);
+      const text = `${label} downloading | elapsed ${elapsed}${mediaTime}`;
+      if (!force && text === lastRenderedText && now - lastRenderAt < 500) return;
+      lastRenderedText = text;
+      lastRenderAt = now;
+      drawBar(pulse, text);
     };
 
     const child = spawn(ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -676,7 +688,7 @@ const downloadEpisode = async (
       renderProgress(Math.max(lastPercent, syntheticPercent), lastOutTimeMs);
     }, 250);
 
-    renderProgress(0, 0);
+    renderProgress(0, 0, true);
 
     child.stdout?.on('data', (chunk) => {
       progressBuffer += chunk.toString();
@@ -878,9 +890,13 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Draws the progress bar in-place on the current line (no newline). */
 const drawBar = (filled: number, text: string) => {
-  const pct = Math.floor((filled / BAR_WIDTH) * 100);
-  const bar = '█'.repeat(filled) + '░'.repeat(BAR_WIDTH - filled);
-  process.stdout.write(`\r${ERASE_LINE}  [${bar}] ${CLR.green}${String(pct).padStart(3)}%${CLR.reset} | ${text}`);
+  const columns = process.stdout.columns || 100;
+  const label = ` | ${text}`;
+  const barWidth = Math.min(BAR_WIDTH, Math.max(10, columns - label.length - 16));
+  const normalizedFilled = Math.max(0, Math.min(barWidth, Math.round((filled / BAR_WIDTH) * barWidth)));
+  const pct = Math.floor((Math.max(0, Math.min(BAR_WIDTH, filled)) / BAR_WIDTH) * 100);
+  const bar = '#'.repeat(normalizedFilled) + '-'.repeat(barWidth - normalizedFilled);
+  process.stdout.write(`\r${ERASE_LINE}  [${bar}] ${CLR.green}${String(pct).padStart(3)}%${CLR.reset}${label}`);
 };
 
 /** Clears the bar line, prints a message above, then redraws the bar. */
