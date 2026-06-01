@@ -164,6 +164,13 @@ else
     write_note "Install it via your package manager (e.g. apt, brew, pacman)"
 fi
 
+if command -v ffmpeg &> /dev/null; then
+    write_success "ffmpeg found"
+else
+    write_warn "ffmpeg was not found on PATH"
+    write_note "Install ffmpeg before using yorumi-cli --download."
+fi
+
 if command -v fzf &> /dev/null; then
     write_success "fzf found"
 else
@@ -205,5 +212,8 @@ echo ""
 write_info "Run: yorumi-cli --help"
 if ! command -v mpv &> /dev/null; then
     write_warn "Install mpv before running yorumi-cli."
+fi
+if ! command -v ffmpeg &> /dev/null; then
+    write_warn "Install ffmpeg before using yorumi-cli --download."
 fi
 echo ""

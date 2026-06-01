@@ -35,7 +35,7 @@ function Write-Header($message) {
 
 # ── Progress bar ───────────────────────────────────────────────────
 
-$script:totalSteps = 7
+$script:totalSteps = 8
 $script:currentStep = 0
 $script:currentUnits = 0
 $script:progressUnits = 100
@@ -499,6 +499,52 @@ function Ensure-Mpv {
     }
 }
 
+function Test-FfmpegInstalled {
+    if (Get-Command "ffmpeg" -ErrorAction SilentlyContinue) { return $true }
+
+    $candidates = @(
+        "C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+        "C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe"
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return $true }
+    }
+
+    return $false
+}
+
+function Ensure-Ffmpeg {
+    if (Test-FfmpegInstalled) {
+        Complete-ProgressStep "Checking ffmpeg"
+        Write-Success "ffmpeg found"
+        return
+    }
+
+    if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+        Complete-ProgressStep "Checking ffmpeg"
+        Write-Warn "ffmpeg was not found and winget is unavailable"
+        Write-Note "Install ffmpeg manually before using yorumi-cli --download."
+        return
+    }
+
+    Write-Info "ffmpeg not found, installing with winget"
+    Invoke-ProgressCommand "Installing ffmpeg" "winget" @(
+        "install",
+        "--id", "Gyan.FFmpeg",
+        "-e",
+        "--accept-package-agreements",
+        "--accept-source-agreements"
+    ) $PWD.Path
+
+    if (Test-FfmpegInstalled) {
+        Write-Success "ffmpeg installed"
+    } else {
+        Write-Warn "ffmpeg installed, but PATH may need a new terminal"
+        Write-Note "If downloads fail, reopen PowerShell and run yorumi-cli again."
+    }
+}
+
 # ── Start ──────────────────────────────────────────────────────────
 
 Write-Host ""
@@ -515,6 +561,7 @@ if ($gitAvailable) {
 }
 Ensure-NodeRuntime
 Ensure-Mpv
+Ensure-Ffmpeg
 Ensure-Fzf
 
 # ── Clone / pull CLI repo ──────────────────────────────────────────
@@ -568,5 +615,8 @@ Write-Host ""
 Write-Info "Run: yorumi-cli --help"
 if (-not (Get-Command "mpv" -ErrorAction SilentlyContinue)) {
     Write-Warn "If mpv was just installed, reopen your terminal before running yorumi-cli."
+}
+if (-not (Get-Command "ffmpeg" -ErrorAction SilentlyContinue)) {
+    Write-Warn "If ffmpeg was just installed, reopen your terminal before using yorumi-cli --download."
 }
 Write-Host ""

@@ -40,7 +40,7 @@ choco install yorumi-cli
 
 Package-manager installs require published winget/scoop/choco manifests. Until those are submitted, use the PowerShell installer.
 
-On Windows, the PowerShell installer attempts to install `mpv` with Winget when it is missing. The CLI uses `https://yorumi-sigma.vercel.app/api` by default.
+On Windows, the PowerShell installer attempts to install `mpv` and `ffmpeg` with Winget when they are missing. The CLI uses `https://yorumi-sigma.vercel.app/api` by default.
 
 ```powershell
 yorumi-cli -e 1 "Frieren"
@@ -56,7 +56,8 @@ yorumi-cli --episode 1 "Frieren"
 yorumi-cli -r "1-5" "Naruto"
 yorumi-cli --range "1-5" "Naruto"
 yorumi-cli "one piece" --episode 1120
-yorumi-cli -d --episode 1 "Frieren"
+yorumi-cli -d -e 1 "Frieren"
+yorumi-cli -d -r "1-5" "Naruto"
 yorumi-cli --download --range "1-5" "Naruto" --output "D:\Anime"
 ```
 
@@ -67,7 +68,7 @@ yorumi-cli --update
 yorumi-cli --uninstall
 ```
 
-Download mode requires `ffmpeg` on PATH. Use `--yes` to overwrite an existing output file or skip the uninstall confirmation.
+Download mode requires `ffmpeg`. On Windows, the CLI can install it with Winget when needed. Use `--yes` to auto-confirm ffmpeg installation, overwrite an existing output file, or skip the uninstall confirmation.
 
 ## Interactive Menu
 

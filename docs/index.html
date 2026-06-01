@@ -59,7 +59,7 @@
         <p>The easiest way to install Yorumi CLI is using the official PowerShell installer.</p>
 
         <h3>Windows</h3>
-        <p>The PowerShell installer installs Yorumi CLI and attempts to install <code>mpv</code> with Winget when it is missing.</p>
+        <p>The PowerShell installer installs Yorumi CLI and attempts to install <code>mpv</code> and <code>ffmpeg</code> with Winget when they are missing.</p>
         <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
 
         <h3>Linux / macOS</h3>
@@ -81,11 +81,12 @@
 <span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -e 1 "Frieren"</span>
 <span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli --episode 1 "Frieren"</span>
 <span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -r "1-5" "Naruto"</span>
-<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -d --episode 1 "Frieren"</span></code></pre>
+<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -d -e 1 "Frieren"</span></code></pre>
 
         <h3>Download Episodes</h3>
-        <p>Use <code>--download</code> to save selected episodes instead of opening mpv. Download mode requires <code>ffmpeg</code>.</p>
-        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -d --episode 1 "Frieren"</span>
+        <p>Use <code>-d</code> or <code>--download</code> to save selected episodes instead of opening mpv. Download mode requires <code>ffmpeg</code>; on Windows, the CLI can install it with Winget when needed.</p>
+        <pre><code><span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -d -e 1 "Frieren"</span>
+<span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli -d -r "1-5" "Naruto"</span>
 <span class="prompt">PS&gt;</span> <span class="cmd">yorumi-cli --download --range "1-5" "Naruto" --output "D:\Anime"</span></code></pre>
 
         <h3>Keep It Updated</h3>

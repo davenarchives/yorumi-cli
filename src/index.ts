@@ -194,7 +194,8 @@ Examples:
   yorumi-cli "One Piece"
   yorumi-cli --episode 1 "Frieren"
   yorumi-cli --range "1-5" "Naruto"
-  yorumi-cli -d --episode 1 "Frieren"
+  yorumi-cli -d -e 1 "Frieren"
+  yorumi-cli -d -r "1-5" "Naruto"
 
 Options:
   -e, --episode <number>   Pick an episode without prompting
@@ -326,6 +327,42 @@ const resolveFfmpegCommand = async () => {
   ];
 
   return candidates.find((candidate) => existsSync(candidate)) || null;
+};
+
+const installFfmpegWithWinget = async (yes: boolean) => {
+  if (platform() !== 'win32' || !(await commandExists('winget'))) return false;
+
+  if (!yes) {
+    const answer = (await ask('ffmpeg is required for downloads. Install it with winget now? [y/N] ')).toLowerCase();
+    if (answer !== 'y' && answer !== 'yes') return false;
+  }
+
+  console.log('Installing ffmpeg with winget...');
+  const result = spawnSync('winget', [
+    'install',
+    '--id',
+    'Gyan.FFmpeg',
+    '-e',
+    '--accept-package-agreements',
+    '--accept-source-agreements',
+  ], { stdio: 'inherit' });
+
+  return result.status === 0;
+};
+
+const requireFfmpegCommand = async (yes: boolean) => {
+  const existing = await resolveFfmpegCommand();
+  if (existing) return existing;
+
+  const installed = await installFfmpegWithWinget(yes);
+  if (installed) {
+    const afterInstall = await resolveFfmpegCommand();
+    if (afterInstall) return afterInstall;
+
+    throw new Error('ffmpeg was installed, but your terminal PATH has not refreshed. Reopen PowerShell and run the download again.');
+  }
+
+  throw new Error('ffmpeg was not found. Install it with: winget install --id Gyan.FFmpeg -e');
 };
 
 const resolvePlayerCommand = async (player: string) => {
@@ -477,10 +514,7 @@ const downloadEpisode = async (
   referer: string,
   overwrite: boolean,
 ) => {
-  const ffmpeg = await resolveFfmpegCommand();
-  if (!ffmpeg) {
-    throw new Error('ffmpeg was not found. Install ffmpeg or use mpv playback without --download.');
-  }
+  const ffmpeg = await requireFfmpegCommand(overwrite);
 
   if (existsSync(outputPath) && !overwrite) {
     throw new Error(`Output already exists: ${outputPath}. Re-run with --yes to overwrite.`);
