@@ -895,7 +895,10 @@ const drawBar = (filled: number, text: string) => {
   const barWidth = Math.min(BAR_WIDTH, Math.max(10, columns - label.length - 16));
   const normalizedFilled = Math.max(0, Math.min(barWidth, Math.round((filled / BAR_WIDTH) * barWidth)));
   const pct = Math.floor((Math.max(0, Math.min(BAR_WIDTH, filled)) / BAR_WIDTH) * 100);
-  const bar = '#'.repeat(normalizedFilled) + '-'.repeat(barWidth - normalizedFilled);
+  const useAscii = /^(1|true|yes)$/i.test(String(process.env.YORUMI_ASCII_PROGRESS || ''));
+  const filledChar = useAscii ? '#' : '█';
+  const emptyChar = useAscii ? '-' : '░';
+  const bar = filledChar.repeat(normalizedFilled) + emptyChar.repeat(barWidth - normalizedFilled);
   process.stdout.write(`\r${ERASE_LINE}  [${bar}] ${CLR.green}${String(pct).padStart(3)}%${CLR.reset}${label}`);
 };
 
