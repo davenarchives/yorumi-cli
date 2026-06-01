@@ -192,21 +192,22 @@ ion-icon {
 }
 
 .hero-section {
+  min-height: calc(100vh - 68px);
   min-height: calc(100svh - 68px);
   display: grid;
-  grid-template-columns: minmax(320px, 0.86fr) minmax(440px, 1.14fr);
-  gap: clamp(32px, 4.5vw, 64px);
+  grid-template-columns: minmax(300px, 0.82fr) minmax(420px, 1.18fr);
+  gap: clamp(28px, 3.6vw, 52px);
   align-items: center;
-  max-width: 1220px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: clamp(36px, 5vw, 72px) clamp(18px, 4vw, 48px) 48px;
+  padding: clamp(18px, 3.2vh, 32px) clamp(18px, 4vw, 44px) clamp(18px, 3.2vh, 32px);
 }
 
 .eyebrow {
   display: inline-flex;
   width: fit-content;
-  margin: 0 0 18px;
-  padding: 6px 10px;
+  margin: 0 0 14px;
+  padding: 5px 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--accent);
@@ -222,32 +223,32 @@ h1, h2, h3, p {
 }
 
 h1 {
-  max-width: 620px;
-  margin-bottom: 18px;
-  font-size: clamp(48px, 6vw, 92px);
-  line-height: 0.9;
-  letter-spacing: -0.07em;
+  max-width: 540px;
+  margin-bottom: 16px;
+  font-size: clamp(46px, 5.2vw, 78px);
+  line-height: 0.92;
+  letter-spacing: -0.065em;
 }
 
 .hero-lede {
-  max-width: 500px;
+  max-width: 480px;
   color: var(--muted);
-  font-size: clamp(16px, 1.25vw, 18px);
+  font-size: clamp(15px, 1.15vw, 17px);
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 26px 0;
+  margin: 22px 0;
 }
 
 .button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 18px;
+  min-height: 42px;
+  padding: 0 16px;
   border-radius: 8px;
   border: 1px solid var(--line);
   font-weight: 800;
@@ -272,13 +273,13 @@ h1 {
 .quick-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  max-width: 500px;
-  gap: 12px;
+  max-width: 480px;
+  gap: 10px;
   margin: 0;
 }
 
 .quick-stats div {
-  padding: 12px 14px;
+  padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 80%, transparent);
@@ -299,8 +300,9 @@ h1 {
 .hero-visual {
   position: relative;
   justify-self: end;
-  width: min(100%, 720px);
-  min-height: 560px;
+  width: min(100%, 690px);
+  height: min(560px, calc(100svh - 126px));
+  min-height: 460px;
 }
 
 .terminal-window,
@@ -316,27 +318,27 @@ h1 {
 .terminal-watch {
   position: relative;
   z-index: 1;
-  width: min(620px, 90%);
+  width: min(580px, 88%);
 }
 
 .terminal-download {
   position: absolute;
   z-index: 3;
-  right: 18px;
-  top: 330px;
-  width: min(430px, 64%);
+  right: 20px;
+  top: clamp(290px, 52%, 330px);
+  width: min(420px, 62%);
 }
 
 .player-window {
   position: absolute;
   z-index: 2;
   right: 0;
-  top: 230px;
+  top: clamp(198px, 37%, 230px);
   width: min(560px, 82%);
 }
 
 .window-bar {
-  height: 38px;
+  height: 36px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -344,7 +346,7 @@ h1 {
   background: #1f2024;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   color: #f4f4f5;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -357,10 +359,10 @@ h1 {
 
 .terminal-window pre {
   margin: 0;
-  padding: 18px 20px;
+  padding: 16px 18px;
   overflow: hidden;
   white-space: pre-wrap;
-  font-size: clamp(10px, 0.82vw, 12px);
+  font-size: clamp(9px, 0.72vw, 11px);
   line-height: 1.45;
 }
 
@@ -373,8 +375,11 @@ h1 {
   position: relative;
   aspect-ratio: 16 / 9;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.95), rgba(171, 205, 229, 0.65) 52%, rgba(35, 39, 48, 0.9)),
-    repeating-linear-gradient(110deg, transparent 0 42px, rgba(55, 122, 170, 0.28) 43px 47px);
+    linear-gradient(to bottom, rgba(0, 0, 0, 0) 72%, rgba(0, 0, 0, 0.35)),
+    url("./mpv-preview.jpg"),
+    linear-gradient(135deg, rgba(255,255,255,0.95), rgba(171, 205, 229, 0.65) 52%, rgba(35, 39, 48, 0.9));
+  background-position: center;
+  background-size: cover;
 }
 
 .subtitle-line {
@@ -394,7 +399,7 @@ h1 {
   grid-template-columns: auto 1fr auto;
   gap: 12px;
   align-items: center;
-  padding: 12px 16px;
+  padding: 10px 16px;
   background: #141416;
   color: #f4f4f5;
   font-size: 13px;
