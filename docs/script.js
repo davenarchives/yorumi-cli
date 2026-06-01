@@ -17,16 +17,7 @@ setTheme(getPreferredTheme());
 
 themeToggle?.addEventListener('click', () => {
   const nextTheme = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  const apply = () => setTheme(nextTheme);
-
-  if (document.startViewTransition) {
-    document.startViewTransition(apply);
-    return;
-  }
-
-  root.classList.add('theme-fade');
-  apply();
-  window.setTimeout(() => root.classList.remove('theme-fade'), 650);
+  setTheme(nextTheme);
 });
 
 document.querySelectorAll('[data-tabs]').forEach((tabs) => {
@@ -45,7 +36,7 @@ document.querySelectorAll('[data-tabs]').forEach((tabs) => {
 });
 
 document.querySelectorAll('pre').forEach((pre) => {
-  if (pre.closest('.terminal-window') || pre.closest('.code-window')) return;
+  if (pre.closest('.terminal-window') || pre.closest('.code-window') || pre.classList.contains('ascii-banner')) return;
 
   const codeWindow = document.createElement('div');
   codeWindow.className = 'code-window';

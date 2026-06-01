@@ -86,24 +86,7 @@ button {
   font: inherit;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 650ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
 
-::view-transition-old(root) { animation-name: theme-out; }
-::view-transition-new(root) { animation-name: theme-in; }
-
-@keyframes theme-out {
-  from { opacity: 1; transform: scale(1); filter: blur(0); }
-  to { opacity: 0; transform: scale(0.985); filter: blur(8px); }
-}
-
-@keyframes theme-in {
-  from { opacity: 0; transform: scale(1.015); filter: blur(8px); }
-  to { opacity: 1; transform: scale(1); filter: blur(0); }
-}
 
 .site-header {
   position: sticky;
@@ -328,8 +311,8 @@ h1 {
 .terminal-download {
   position: absolute;
   z-index: 3;
-  right: 20px;
-  top: clamp(290px, 52%, 330px);
+  left: 10%;
+  top: clamp(130px, 26%, 170px);
   width: min(420px, 62%);
 }
 
@@ -684,18 +667,12 @@ td {
 .site-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
+  justify-content: center;
   padding: 34px clamp(18px, 4vw, 56px);
   border-top: 1px solid var(--line);
   color: var(--muted);
   background: var(--bg-soft);
-}
-
-.site-footer a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  font-size: 14px;
 }
 
 .docs-shell {
@@ -777,6 +754,19 @@ td {
 .docs-section h3 {
   margin: 30px 0 12px;
   font-size: 19px;
+}
+
+.ascii-banner {
+  margin: 0 0 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--accent);
+  font-size: clamp(10px, 1.1vw, 14px);
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  overflow-x: auto;
 }
 
 .docs-lede,
