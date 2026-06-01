@@ -2,9 +2,9 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { platform } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 interface AnimeSearchResult {
   id: string | number;
@@ -49,9 +49,13 @@ interface CliOptions {
   apiBase: string;
   player: string;
   windowSize: string;
+  outputDir: string;
   printUrl: boolean;
   directPlay: boolean;
+  download: boolean;
   update: boolean;
+  uninstall: boolean;
+  yes: boolean;
 }
 
 const rl = createInterface({ input, output });
@@ -72,9 +76,13 @@ const parseArgs = (argv: string[]): CliOptions => {
     apiBase: String(process.env.YORUMI_API_URL || DEFAULT_API_BASE).replace(/\/+$/, ''),
     player: String(process.env.YORUMI_PLAYER || 'mpv'),
     windowSize: String(process.env.YORUMI_PLAYER_SIZE || '960x540'),
+    outputDir: 'downloads',
     printUrl: false,
     directPlay: false,
+    download: false,
     update: false,
+    uninstall: false,
+    yes: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -122,8 +130,19 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
+    if (arg === '--output' || arg === '-o') {
+      options.outputDir = String(next || options.outputDir);
+      i += 1;
+      continue;
+    }
+
     if (arg === '--print-url') {
       options.printUrl = true;
+      continue;
+    }
+
+    if (arg === '--download') {
+      options.download = true;
       continue;
     }
 
@@ -134,6 +153,16 @@ const parseArgs = (argv: string[]): CliOptions => {
 
     if (arg === '--update' || arg === '-u') {
       options.update = true;
+      continue;
+    }
+
+    if (arg === '--uninstall') {
+      options.uninstall = true;
+      continue;
+    }
+
+    if (arg === '--yes' || arg === '-y') {
+      options.yes = true;
       continue;
     }
 
@@ -165,12 +194,19 @@ Examples:
   yorumi-cli "One Piece"
   yorumi-cli --episode 1 "Frieren"
   yorumi-cli --range "1-5" "Naruto"
+  yorumi-cli --download --episode 1 "Frieren"
 
 Options:
   -e, --episode <number>   Pick an episode without prompting
   -r, --range <start-end>  Watch an episode range, for example 1-5
   -i, --anime-index <num>  Pick a search result without prompting, 1-based
+      --download           Download selected anime episode(s) instead of opening mpv
+  -o, --output <dir>       Download output directory (default: downloads)
+      --direct             Ask Yorumi for a direct stream URL when possible
+      --print-url          Print resolved stream URL(s) and exit
   -u, --update             Update Yorumi CLI and its dependencies
+      --uninstall          Remove Yorumi CLI from this machine
+  -y, --yes                Skip confirmation prompts where supported
   -h, --help               Show this help
 `);
 };
@@ -271,6 +307,26 @@ const commandExists = (command: string) => new Promise<boolean>((resolve) => {
   child.on('close', (code) => resolve(code === 0));
   child.on('error', () => resolve(false));
 });
+
+const sanitizeFilePart = (value: string) =>
+  String(value || 'anime')
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'anime';
+
+const resolveFfmpegCommand = async () => {
+  if (await commandExists('ffmpeg')) return 'ffmpeg';
+
+  if (platform() !== 'win32') return null;
+
+  const candidates = [
+    'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+    'C:\\Program Files (x86)\\ffmpeg\\bin\\ffmpeg.exe',
+  ];
+
+  return candidates.find((candidate) => existsSync(candidate)) || null;
+};
 
 const resolvePlayerCommand = async (player: string) => {
   if (existsSync(player)) return player;
@@ -415,6 +471,116 @@ const resolveEpisodeStreamUrl = async (
 };
 
 // ── Colored output helpers ────────────────────────────────────────
+const downloadEpisode = async (
+  url: string,
+  outputPath: string,
+  referer: string,
+  overwrite: boolean,
+) => {
+  const ffmpeg = await resolveFfmpegCommand();
+  if (!ffmpeg) {
+    throw new Error('ffmpeg was not found. Install ffmpeg or use mpv playback without --download.');
+  }
+
+  if (existsSync(outputPath) && !overwrite) {
+    throw new Error(`Output already exists: ${outputPath}. Re-run with --yes to overwrite.`);
+  }
+
+  const args = [
+    overwrite ? '-y' : '-n',
+    '-headers',
+    `Referer: ${referer}\r\nUser-Agent: Mozilla/5.0\r\n`,
+    '-i',
+    url,
+    '-c',
+    'copy',
+    '-bsf:a',
+    'aac_adtstoasc',
+    outputPath,
+  ];
+
+  await new Promise<void>((resolveDownload, reject) => {
+    const child = spawn(ffmpeg, args, { stdio: 'inherit' });
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      if (code === 0) {
+        resolveDownload();
+        return;
+      }
+      reject(new Error(`ffmpeg exited with code ${code}`));
+    });
+  });
+};
+
+const downloadEpisodes = async (
+  anime: AnimeSearchResult,
+  episodes: Episode[],
+  resolved: PlayableStreamPayload[],
+  outputDir: string,
+  overwrite: boolean,
+) => {
+  const targetDir = resolve(outputDir);
+  mkdirSync(targetDir, { recursive: true });
+
+  for (let index = 0; index < resolved.length; index += 1) {
+    const episode = episodes[index];
+    const playable = resolved[index];
+    const referer = getStreamReferer(playable.stream);
+    const fileName = `${sanitizeFilePart(anime.title)} - E${String(episode.episodeNumber).padStart(2, '0')}.mp4`;
+    const outputPath = join(targetDir, fileName);
+
+    console.log(`Downloading episode ${episode.episodeNumber} to ${outputPath}`);
+    await downloadEpisode(playable.url, outputPath, referer, overwrite);
+  }
+
+  console.log('Download complete.');
+};
+
+const removePathLater = (targetPath: string) => {
+  if (platform() === 'win32') {
+    const quotedPath = `'${targetPath.replace(/'/g, "''")}'`;
+    const script = `Start-Sleep -Milliseconds 800; Remove-Item -LiteralPath ${quotedPath} -Recurse -Force`;
+    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.unref();
+    return;
+  }
+
+  const child = spawn('sh', ['-c', 'sleep 0.8; rm -rf -- "$1"', 'sh', targetPath], {
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.unref();
+};
+
+const uninstallYorumiCli = async (yes: boolean) => {
+  const installRoot = resolve(getInstallRoot());
+
+  if (!installRoot.endsWith('YorumiCLI')) {
+    throw new Error(`Refusing to uninstall unexpected path: ${installRoot}`);
+  }
+
+  if (!existsSync(installRoot)) {
+    console.log(`Yorumi CLI is not installed at ${installRoot}`);
+    return;
+  }
+
+  if (!yes) {
+    const answer = (await ask(`Remove Yorumi CLI from ${installRoot}? Type "yes" to continue: `)).toLowerCase();
+    if (answer !== 'yes') {
+      console.log('Uninstall cancelled.');
+      return;
+    }
+  }
+
+  removePathLater(installRoot);
+  console.log(`Yorumi CLI uninstall scheduled for ${installRoot}`);
+  console.log('Close and reopen your terminal after it finishes.');
+};
+
 const CLR = {
   reset: '\x1b[0m',
   black: '\x1b[30m',
@@ -527,6 +693,11 @@ const main = async () => {
     return;
   }
 
+  if (options.uninstall) {
+    await uninstallYorumiCli(options.yes);
+    return;
+  }
+
   const query = options.query || await ask('Search anime: ');
   if (!query) {
     printHelp();
@@ -565,6 +736,11 @@ const main = async () => {
 
   if (options.printUrl) {
     streamUrls.forEach((url) => console.log(url));
+    return;
+  }
+
+  if (options.download) {
+    await downloadEpisodes(anime, selectedEpisodes, resolved, options.outputDir, options.yes);
     return;
   }
 

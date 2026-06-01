@@ -56,7 +56,18 @@ yorumi-cli --episode 1 "Frieren"
 yorumi-cli -r "1-5" "Naruto"
 yorumi-cli --range "1-5" "Naruto"
 yorumi-cli "one piece" --episode 1120
+yorumi-cli --download --episode 1 "Frieren"
+yorumi-cli --download --range "1-5" "Naruto" --output "D:\Anime"
 ```
+
+Update or uninstall:
+
+```powershell
+yorumi-cli --update
+yorumi-cli --uninstall
+```
+
+Download mode requires `ffmpeg` on PATH. Use `--yes` to overwrite an existing output file or skip the uninstall confirmation.
 
 ## Interactive Menu
 
