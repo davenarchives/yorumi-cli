@@ -521,7 +521,6 @@ h2 {
   box-shadow: 0 18px 40px var(--shadow);
 }
 
-.install-panel,
 .feature-card,
 .reference-grid article,
 .support-list article,
@@ -529,7 +528,6 @@ h2 {
   transition: transform 260ms cubic-bezier(.2,.8,.2,1), border-color 260ms ease, box-shadow 260ms ease, background-color 260ms ease;
 }
 
-.install-panel:hover,
 .feature-card:hover,
 .reference-grid article:hover,
 .support-list article:hover,
