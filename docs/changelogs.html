@@ -51,10 +51,14 @@
       </ul>
       <h3>Fixed</h3>
       <ul>
+        <li>Fixed the Scoop manifest so the command shim is created before Scoop links it.</li>
+        <li>Fixed Scoop dependency installation by running npm from the extracted app directory instead of using the Scoop current symlink as a prefix.</li>
+        <li>Made Scoop installs fail loudly if npm dependency installation fails instead of reporting a partial successful install.</li>
         <li>Pinned the Chocolatey package install flow to the matching release tag instead of the moving main branch.</li>
       </ul>
       <h3>Improved</h3>
       <ul>
+        <li>Documented local Scoop manifest testing and custom bucket publishing steps.</li>
         <li>Updated package-manager templates for the v0.1.2 release.</li>
       </ul>
       <p class="release-links">

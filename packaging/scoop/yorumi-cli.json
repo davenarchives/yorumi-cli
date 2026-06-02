@@ -8,11 +8,16 @@
   "extract_dir": "yorumi-cli-0.1.2",
   "depends": "nodejs",
   "bin": "yorumi-cli.cmd",
-  "post_install": [
-    "npm install --loglevel=error",
+  "pre_install": [
     "$node = (Get-Command node).Source",
     "$launcher = Join-Path $dir 'bin\\yorumi-cli.cjs'",
     "Set-Content -Path (Join-Path $dir 'yorumi-cli.cmd') -Encoding ASCII -Value ('@echo off' + [Environment]::NewLine + '\"' + $node + '\" \"' + $launcher + '\" %*' + [Environment]::NewLine)"
+  ],
+  "post_install": [
+    "Push-Location $dir",
+    "npm ci --omit=dev --loglevel=error",
+    "if ($LASTEXITCODE -ne 0) { throw 'Failed to install Yorumi CLI dependencies.' }",
+    "Pop-Location"
   ],
   "notes": [
     "Yorumi CLI uses mpv for playback and ffmpeg for downloads.",

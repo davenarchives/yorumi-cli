@@ -50,6 +50,27 @@ Required:
 
 Current manifest: `packaging/scoop/yorumi-cli.json`.
 
+Local manifest test:
+
+```powershell
+scoop install .\packaging\scoop\yorumi-cli.json
+yorumi-cli --help
+scoop uninstall yorumi-cli
+```
+
+Make the short command work:
+
+1. Create a public Scoop bucket repository, for example `davenarchives/scoop-yorumi`.
+2. Add `packaging/scoop/yorumi-cli.json` to the bucket repository under `bucket/yorumi-cli.json`.
+3. Users add the bucket once:
+
+```powershell
+scoop bucket add yorumi https://github.com/davenarchives/scoop-yorumi
+scoop install yorumi-cli
+```
+
+To make `scoop install yorumi-cli` work without adding a custom bucket, submit the manifest to a public bucket such as Scoop Extras and wait for it to be accepted.
+
 ## Chocolatey
 
 Target command:
