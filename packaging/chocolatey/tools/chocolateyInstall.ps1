@@ -1,11 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $installScript = Join-Path $env:TEMP 'yorumi-cli-install.ps1'
-$installUrl = 'https://raw.githubusercontent.com/davenarchives/yorumi-cli/v0.1.2/install.ps1'
+$installUrl = 'https://raw.githubusercontent.com/davenarchives/yorumi-cli/v0.1.3/install.ps1'
 
-Get-ChocolateyWebFile `
-  -PackageName 'yorumi-cli' `
-  -FileFullPath $installScript `
-  -Url $installUrl
+Invoke-WebRequest -Uri $installUrl -OutFile $installScript -UseBasicParsing
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installScript -Ref 'v0.1.2'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installScript -Ref 'v0.1.3'

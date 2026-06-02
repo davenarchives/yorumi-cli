@@ -29,6 +29,7 @@ winget install Yorumi.YorumiCLI
 Scoop:
 
 ```powershell
+scoop bucket add yorumi https://github.com/davenarchives/yorumi-cli
 scoop install yorumi-cli
 ```
 
