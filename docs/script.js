@@ -127,3 +127,56 @@ document.querySelectorAll('pre').forEach((pre) => {
     }, 1200);
   });
 });
+
+const docsSidebarLinks = Array.from(document.querySelectorAll('[data-docs-nav]'));
+const tocGroups = Array.from(document.querySelectorAll('[data-toc-group]'));
+const tocLinks = Array.from(document.querySelectorAll('.docs-toc a[href^="#"]'));
+
+const setDocsMode = (mode) => {
+  docsSidebarLinks.forEach((link) => {
+    link.classList.toggle('active', link.getAttribute('data-docs-nav') === mode);
+  });
+  tocGroups.forEach((group) => {
+    group.classList.toggle('active', group.getAttribute('data-toc-group') === mode);
+  });
+};
+
+const setActiveTocLink = (id) => {
+  tocLinks.forEach((link) => {
+    link.classList.toggle('active', link.getAttribute('href') === `#${id}`);
+  });
+};
+
+if (docsSidebarLinks.length && tocGroups.length) {
+  const modeTargets = [
+    document.getElementById('getting-started'),
+    document.getElementById('changelogs'),
+  ].filter(Boolean);
+
+  const tocTargets = tocLinks
+    .map((link) => document.getElementById(link.getAttribute('href').slice(1)))
+    .filter(Boolean);
+
+  const updateDocsNavigation = () => {
+    const offset = 116;
+    const mode = (document.getElementById('changelogs')?.getBoundingClientRect().top ?? Infinity) <= offset
+      ? 'changelogs'
+      : 'getting-started';
+
+    setDocsMode(mode);
+
+    const activeTarget = tocTargets
+      .filter((target) => target.getBoundingClientRect().top <= offset)
+      .pop() ?? tocTargets[0];
+
+    if (activeTarget) setActiveTocLink(activeTarget.id);
+  };
+
+  updateDocsNavigation();
+  window.addEventListener('scroll', updateDocsNavigation, { passive: true });
+  window.addEventListener('hashchange', updateDocsNavigation);
+
+  modeTargets.forEach((target) => {
+    target.addEventListener('focus', updateDocsNavigation);
+  });
+}
