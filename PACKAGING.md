@@ -49,6 +49,7 @@ Required:
 4. Publish it in your own bucket or submit to a bucket.
 
 Current manifest: `packaging/scoop/yorumi-cli.json`.
+Bucket manifest: `bucket/yorumi-cli.json`.
 
 Local manifest test:
 
@@ -60,12 +61,12 @@ scoop uninstall yorumi-cli
 
 Make the short command work:
 
-1. Create a public Scoop bucket repository, for example `davenarchives/scoop-yorumi`.
-2. Add `packaging/scoop/yorumi-cli.json` to the bucket repository under `bucket/yorumi-cli.json`.
-3. Users add the bucket once:
+1. Keep a copy of the manifest at `bucket/yorumi-cli.json`.
+2. Push this repository to GitHub.
+3. Users add this repository as a Scoop bucket once:
 
 ```powershell
-scoop bucket add yorumi https://github.com/davenarchives/scoop-yorumi
+scoop bucket add yorumi https://github.com/davenarchives/yorumi-cli
 scoop install yorumi-cli
 ```
 
