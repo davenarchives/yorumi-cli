@@ -6,6 +6,13 @@
   <title>Yorumi CLI Changelogs</title>
   <meta name="description" content="Release notes and version history for Yorumi CLI." />
   <link rel="icon" type="image/png" href="./yorumi-icon.png" />
+  <script>
+    (() => {
+      const savedTheme = localStorage.getItem('yorumi-cli-theme');
+      const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+      document.documentElement.setAttribute('data-theme', savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : (prefersLight ? 'light' : 'dark'));
+    })();
+  </script>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
