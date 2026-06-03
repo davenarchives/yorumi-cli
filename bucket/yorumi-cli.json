@@ -1,11 +1,11 @@
 {
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Terminal anime watcher and downloader powered by Yorumi and mpv.",
   "homepage": "https://github.com/davenarchives/yorumi-cli",
   "license": "MIT",
-  "url": "https://github.com/davenarchives/yorumi-cli/archive/refs/tags/v0.1.2.zip",
-  "hash": "86508b3f8dd01ac403a2d87cac1d1590291e61ee4744ad137b75eef20a53664b",
-  "extract_dir": "yorumi-cli-0.1.2",
+  "url": "https://github.com/davenarchives/yorumi-cli/archive/refs/tags/v0.1.4.zip",
+  "hash": "71fed1e8feb1eb87a72d878f697f2d3ed42c24e636fc0b29c26d5837306235a4",
+  "extract_dir": "yorumi-cli-0.1.4",
   "depends": "nodejs",
   "bin": "yorumi-cli.cmd",
   "pre_install": [
