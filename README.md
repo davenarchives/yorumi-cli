@@ -60,6 +60,7 @@ yorumi-cli "one piece" --episode 1120
 yorumi-cli -d -e 1 "Frieren"
 yorumi-cli -d -r "1-5" "Naruto"
 yorumi-cli --download --range "1-5" "Naruto" --output "D:\Anime"
+yorumi-cli --version
 ```
 
 Update or uninstall:

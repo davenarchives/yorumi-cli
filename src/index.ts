@@ -2,9 +2,10 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 interface AnimeSearchResult {
   id: string | number;
@@ -61,6 +62,16 @@ interface CliOptions {
 
 const rl = createInterface({ input, output });
 const DEFAULT_API_BASE = 'https://yorumi-sigma.vercel.app/api';
+const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+const getCliVersion = () => {
+  try {
+    const packageJson = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8')) as { version?: string };
+    return packageJson.version || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+};
 
 const getDefaultDownloadDir = () => {
   const configured = String(process.env.YORUMI_DOWNLOAD_DIR || '').trim();
@@ -101,6 +112,11 @@ const parseArgs = (argv: string[]): CliOptions => {
 
     if (arg === '--help' || arg === '-h') {
       printHelp();
+      process.exit(0);
+    }
+
+    if (arg === '--version' || arg === '-v') {
+      console.log(getCliVersion());
       process.exit(0);
     }
 
@@ -224,6 +240,7 @@ Options:
   -u, --update             Update Yorumi CLI and its dependencies
       --uninstall          Remove Yorumi CLI from this machine
   -y, --yes                Skip confirmation prompts where supported
+  -v, --version            Show the installed Yorumi CLI version
   -h, --help               Show this help
 `);
 };
