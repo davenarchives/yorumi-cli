@@ -3,7 +3,7 @@
   "version": "0.1.4",
   "private": true,
   "type": "module",
-  "description": "Command-line AnimePahe watcher using Yorumi scraper logic",
+  "description": "Command-line AllManga watcher using Yorumi scraper logic",
   "bin": {
     "yorumi-cli": "./bin/yorumi-cli.cjs"
   },

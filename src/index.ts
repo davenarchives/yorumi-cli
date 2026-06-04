@@ -538,7 +538,7 @@ const apiGet = async <T>(apiBase: string, path: string, params: Record<string, s
 };
 
 const searchAnime = (apiBase: string, query: string) => {
-  return apiGet<AnimeSearchResult[]>(apiBase, '/scraper/search/animepahe', { q: query });
+  return apiGet<AnimeSearchResult[]>(apiBase, '/scraper/search/allmanga', { q: query });
 };
 
 const getEpisodes = (apiBase: string, animeSession: string) => {
@@ -551,9 +551,9 @@ const getStreamReferer = (stream?: StreamLink) => {
     const parsed = new URL(streamUrl);
     if (/^([^/]+\.)?kwik\./i.test(parsed.host)) return `${parsed.origin}/`;
   } catch {
-    // Fall back to AnimePahe below.
+    // Fall back to AllManga below.
   }
-  return 'https://animepahe.pw/';
+  return 'https://allmanga.to/';
 };
 
 const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string, referer: string) => {
