@@ -197,9 +197,19 @@ fi
 write_header "Installing dependencies"
 write_info "Running npm install in CLI..."
 run_progress_in "Installing CLI npm packages" "$REPO_DIR" npm install --loglevel=error
-(cd "$REPO_DIR" && npm link > /dev/null 2>&1)
+
+if ! (cd "$REPO_DIR" && npm link > /dev/null 2>&1); then
+    write_warn "Global 'npm link' failed (likely permissions)."
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$REPO_DIR/bin/yorumi-cli.cjs" "$HOME/.local/bin/yorumi-cli"
+    chmod +x "$REPO_DIR/bin/yorumi-cli.cjs"
+    write_success "Symlinked to $HOME/.local/bin/yorumi-cli"
+    write_note "Make sure $HOME/.local/bin is in your PATH."
+else
+    write_success "CLI globally linked via npm"
+fi
+
 write_success "CLI dependencies installed"
-write_success "CLI globally linked"
 
 # ── Done ──────────────────────────────────────────────────────────
 
