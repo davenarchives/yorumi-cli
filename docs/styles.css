@@ -1076,16 +1076,34 @@ td {
     min-height: 64px;
     align-items: flex-start;
     padding-top: 14px;
-    padding-bottom: 14px;
+    padding-bottom: 0;
+    flex-wrap: wrap;
+    position: relative;
   }
 
   .site-nav {
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: center;
+    width: calc(100% + 36px);
+    margin: 14px -18px 0;
+    padding: 12px 18px 16px;
+    border-top: 1px solid var(--line);
   }
 
   .site-nav a:not(.icon-link) {
-    display: none;
+    display: inline-flex;
+  }
+
+  .icon-link {
+    position: absolute;
+    top: 12px;
+    right: 64px;
+  }
+
+  .theme-toggle {
+    position: absolute;
+    top: 12px;
+    right: 18px;
   }
 
   h1 {
