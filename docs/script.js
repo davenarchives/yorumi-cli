@@ -132,10 +132,10 @@ document.querySelectorAll('.cmd').forEach((cmdSpan) => {
   let html = cmdSpan.textContent;
   
   html = html
-    .replace(/(?<=^|\s)(yorumi-cli|iwr|winget|scoop|choco|curl|iex|bash)(?=\s|$)/g, '<span class="cmd-app">$1</span>')
-    .replace(/(?<=^|\s)(-[a-zA-Z0-9]+|--[a-zA-Z0-9\-]+)(?=\s|$)/g, '<span class="cmd-flag">$1</span>')
-    .replace(/((?:"[^"]*")|(?:'[^']*'))/g, '<span class="cmd-string">$1</span>')
-    .replace(/(\|)/g, '<span class="cmd-pipe">$1</span>');
+    .replace(/((?:"[^"]*")|(?:'[^']*'))/g, '<span class=cmd-string>$1</span>')
+    .replace(/(?<=^|\s)(yorumi-cli|iwr|winget|scoop|choco|curl|iex|bash)(?=\s|$)/g, '<span class=cmd-app>$1</span>')
+    .replace(/(?<=^|\s)(-[a-zA-Z0-9]+|--[a-zA-Z0-9\-]+)(?=\s|$)/g, '<span class=cmd-flag>$1</span>')
+    .replace(/(\|)/g, '<span class=cmd-pipe>$1</span>');
 
   cmdSpan.innerHTML = html;
 });
