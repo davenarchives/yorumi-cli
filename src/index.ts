@@ -6,6 +6,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash, createDecipheriv } from 'node:crypto';
 
 interface AnimeSearchResult {
   id: string | number;
@@ -537,12 +538,238 @@ const apiGet = async <T>(apiBase: string, path: string, params: Record<string, s
   return await response.json() as T;
 };
 
-const searchAnime = (apiBase: string, query: string) => {
-  return apiGet<AnimeSearchResult[]>(apiBase, '/scraper/search/allmanga', { q: query });
+// ── AllManga direct GraphQL helpers ─────────────────────────────────
+const ALLMANGA_API = 'https://api.allanime.day/api';
+const ALLMANGA_REFERER = 'https://allmanga.to';
+const ALLMANGA_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0';
+const SEARCH_GQL = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name englishName availableEpisodes __typename}}}`;
+const EPISODE_GQL = `query($showId:String! $translationType:VaildTranslationTypeEnumType! $episodeString:String!){episode(showId:$showId translationType:$translationType episodeString:$episodeString){episodeString sourceUrls}}`;
+const EPISODE_QUERY_HASH = 'd405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec';
+
+const HEX_MAP: Record<string, string> = {
+  79: 'A', '7a': 'B', '7b': 'C', '7c': 'D', '7d': 'E', '7e': 'F', '7f': 'G', 70: 'H', 71: 'I', 72: 'J',
+  73: 'K', 74: 'L', 75: 'M', 76: 'N', 77: 'O', 68: 'P', 69: 'Q', '6a': 'R', '6b': 'S', '6c': 'T',
+  '6d': 'U', '6e': 'V', '6f': 'W', 60: 'X', 61: 'Y', 62: 'Z', 59: 'a', '5a': 'b', '5b': 'c',
+  '5c': 'd', '5d': 'e', '5e': 'f', '5f': 'g', 50: 'h', 51: 'i', 52: 'j', 53: 'k', 54: 'l',
+  55: 'm', 56: 'n', 57: 'o', 48: 'p', 49: 'q', '4a': 'r', '4b': 's', '4c': 't', '4d': 'u',
+  '4e': 'v', '4f': 'w', 40: 'x', 41: 'y', 42: 'z', '08': '0', '09': '1', '0a': '2', '0b': '3',
+  '0c': '4', '0d': '5', '0e': '6', '0f': '7', '00': '8', '01': '9', 15: '-', 16: '.', 67: '_',
+  46: '~', '02': ':', 17: '/', '07': '?', '1b': '#', 63: '[', 65: ']', 78: '@', 19: '!', '1c': '$',
+  '1e': '&', 10: '(', 11: ')', 12: '*', 13: '+', 14: ',', '03': ';', '05': '=', '1d': '%',
 };
 
-const getEpisodes = (apiBase: string, animeSession: string) => {
-  return apiGet<EpisodesPayload>(apiBase, '/scraper/episodes', { session: animeSession });
+const amHeaders = {
+  'User-Agent': ALLMANGA_UA,
+  Referer: ALLMANGA_REFERER,
+  Origin: ALLMANGA_REFERER,
+  Accept: '*/*',
+  'Content-Type': 'application/json',
+};
+
+const amGql = async <T>(variables: Record<string, unknown>, query: string): Promise<T | null> => {
+  const response = await fetch(ALLMANGA_API, {
+    method: 'POST',
+    headers: amHeaders,
+    body: JSON.stringify({ variables, query }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`AllManga API ${response.status}`);
+  return await response.json() as T;
+};
+
+const decodeAmUrl = (encoded: string) => {
+  const clean = encoded.startsWith('--') ? encoded.slice(2) : encoded;
+  let result = '';
+  for (let i = 0; i < clean.length; i += 2) {
+    const pair = clean.slice(i, i + 2);
+    result += HEX_MAP[pair] ?? pair;
+  }
+  return result.replace(/\\u002F/gi, '/').replace(/\\\|/g, '');
+};
+
+const normalizeClockUrl = (path: string) => {
+  if (path.startsWith('//')) return `https:${path}`;
+  if (path.startsWith('/')) return `https://allanime.day${path}`;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `https://allanime.day/${path}`;
+};
+
+const followRedirects = async (url: string, maxHops = 10): Promise<string | null> => {
+  let current = url;
+  for (let hop = 0; hop < maxHops; hop++) {
+    const response = await fetch(current, {
+      method: 'GET',
+      headers: { 'User-Agent': ALLMANGA_UA, Referer: ALLMANGA_REFERER },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(12_000),
+    });
+    const location = response.headers.get('location');
+    if (response.status >= 300 && response.status < 400 && location) {
+      current = new URL(location, current).href;
+      continue;
+    }
+    return current;
+  }
+  return current;
+};
+
+type AmSource = { sourceUrl?: string; sourceName?: string; priority?: number };
+
+const decryptTobeparsed = (blob: string): AmSource[] => {
+  try {
+    const raw = Buffer.from(blob, 'base64');
+    const key = createHash('sha256').update('Xot36i3lK3:v1').digest();
+    const iv = Buffer.concat([raw.subarray(1, 13), Buffer.from([0, 0, 0, 2])]);
+    const ciphertext = raw.subarray(13, raw.length - 16);
+    const decipher = createDecipheriv('aes-256-ctr', key, iv);
+    const plain = decipher.update(ciphertext, undefined, 'utf8') + decipher.final('utf8');
+    try {
+      const parsed = JSON.parse(plain);
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed?.episode?.sourceUrls)) return parsed.episode.sourceUrls;
+    } catch {
+      const sources: AmSource[] = [];
+      for (const chunk of plain.split(/[{}]/)) {
+        const urlMatch = chunk.match(/"sourceUrl"\s*:\s*"(--[^"]+)"/);
+        if (!urlMatch) continue;
+        const nameMatch = chunk.match(/"sourceName"\s*:\s*"([^"]+)"/);
+        const priorityMatch = chunk.match(/"priority"\s*:\s*([0-9.]+)/);
+        sources.push({
+          sourceUrl: urlMatch[1],
+          sourceName: nameMatch?.[1] || '',
+          priority: priorityMatch ? Number(priorityMatch[1]) : 0,
+        });
+      }
+      if (sources.length > 0) return sources;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
+
+const parseAmSources = (payload: any): AmSource[] => {
+  if (Array.isArray(payload?.data?.episode?.sourceUrls)) return payload.data.episode.sourceUrls;
+  const encrypted = payload?.data?.tobeparsed || payload?.tobeparsed;
+  if (encrypted) return decryptTobeparsed(encrypted);
+  return [];
+};
+
+const getAmEpisodeSources = async (showId: string, episodeNumber: number, translationType: string): Promise<AmSource[]> => {
+  const episodeString = String(episodeNumber);
+  const candidates = episodeString.includes('.') ? [episodeString] : [episodeString, `${episodeString}.0`];
+  for (const epStr of candidates) {
+    try {
+      // Try persisted query (GET) first
+      const params = new URLSearchParams({
+        variables: JSON.stringify({ showId, translationType, episodeString: epStr }),
+        extensions: JSON.stringify({ persistedQuery: { version: 1, sha256Hash: EPISODE_QUERY_HASH } }),
+      });
+      const response = await fetch(`${ALLMANGA_API}?${params.toString()}`, {
+        headers: { 'User-Agent': ALLMANGA_UA, Referer: ALLMANGA_REFERER, Origin: 'https://youtu-chan.com' },
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const sources = parseAmSources(data);
+        if (sources.length > 0) return sources;
+      }
+    } catch { /* fall through to POST */ }
+    // Fallback: POST with full query
+    const payload = await amGql({ showId, translationType, episodeString: epStr }, EPISODE_GQL);
+    const sources = parseAmSources(payload);
+    if (sources.length > 0) return sources;
+  }
+  return [];
+};
+
+const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamLink | null> => {
+  const sourceUrl = String(source.sourceUrl || '');
+  if (!sourceUrl) return null;
+
+  // Direct URL (not encoded)
+  if (/^https?:\/\//i.test(sourceUrl) && !/\/clock(?:\.json)?(?:[?#]|$)/i.test(sourceUrl)) {
+    return {
+      quality: '720', audio, provider: 'allmanga', server: String(source.sourceName || 'allmanga'),
+      url: sourceUrl, directUrl: sourceUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(sourceUrl),
+    };
+  }
+
+  if (!sourceUrl.startsWith('--')) return null;
+
+  const decodedPath = decodeAmUrl(sourceUrl).replace('/clock', '/clock.json');
+  const fetchUrl = normalizeClockUrl(decodedPath);
+
+  try {
+    const sourceName = String(source.sourceName || 'allmanga');
+    if (/fast4speed\.rsvp/i.test(fetchUrl) || sourceName === 'Yt-mp4') {
+      const finalUrl = await followRedirects(fetchUrl);
+      if (!finalUrl) return null;
+      return {
+        quality: '720', audio, provider: 'allmanga', server: sourceName,
+        url: finalUrl, directUrl: finalUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(finalUrl),
+      };
+    }
+
+    const response = await fetch(fetchUrl, {
+      headers: { 'User-Agent': ALLMANGA_UA, Referer: ALLMANGA_REFERER },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) return null;
+    const data = await response.json() as { links?: Array<{ link?: string; resolutionStr?: string }> };
+    const links = Array.isArray(data?.links) ? data.links : [];
+    const best = links.filter(l => l?.link).sort((a, b) =>
+      (parseInt(String(b.resolutionStr || ''), 10) || 0) - (parseInt(String(a.resolutionStr || ''), 10) || 0)
+    )[0];
+    if (!best?.link) return null;
+    return {
+      quality: String(best.resolutionStr || '').replace(/[^\d]/g, '') || '720',
+      audio, provider: 'allmanga', server: sourceName,
+      url: best.link, directUrl: best.link, isHls: /\.m3u8(?:[?#]|$)/i.test(best.link),
+    };
+  } catch {
+    return null;
+  }
+};
+
+const searchAnime = async (_apiBase: string, query: string): Promise<AnimeSearchResult[]> => {
+  const payload = await amGql<{ data?: { shows?: { edges?: Array<{ _id?: string; name?: string; englishName?: string; availableEpisodes?: Record<string, number> }> } } }>({
+    search: { allowAdult: true, allowUnknown: false, query: query.toLowerCase() },
+    limit: 40, page: 1, translationType: 'sub', countryOrigin: 'ALL',
+  }, SEARCH_GQL);
+  const edges = payload?.data?.shows?.edges || [];
+  return edges.filter(e => e?._id).map(e => {
+    const subEps = Number(e.availableEpisodes?.sub || 0);
+    const dubEps = Number(e.availableEpisodes?.dub || 0);
+    return {
+      id: `am-${e._id}`,
+      title: String(e.englishName || e.name || '').trim(),
+      session: `am-${e._id}`,
+      episodes: Math.max(subEps, dubEps) || undefined,
+    };
+  }).filter(r => r.title);
+};
+
+const getEpisodes = async (_apiBase: string, animeSession: string): Promise<EpisodesPayload> => {
+  const showId = String(animeSession).replace(/^am-/, '');
+  // Get show info for episode count
+  const showPayload = await amGql<{ data?: { show?: { availableEpisodes?: Record<string, number> } } }>(
+    { _id: showId },
+    `query($_id:String!){show(_id:$_id){_id availableEpisodes}}`,
+  );
+  const show = showPayload?.data?.show;
+  const subCount = Number(show?.availableEpisodes?.sub || 0);
+  const dubCount = Number(show?.availableEpisodes?.dub || 0);
+  const totalEpisodes = Math.max(subCount, dubCount, 1);
+  const episodes: Episode[] = [];
+  for (let i = 1; i <= totalEpisodes; i++) {
+    episodes.push({
+      id: `${animeSession}?ep=${i}`,
+      session: `${animeSession}?ep=${i}`,
+      episodeNumber: i,
+    });
+  }
+  return { episodes };
 };
 
 const getStreamReferer = (stream?: StreamLink) => {
@@ -607,15 +834,35 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
 const resolveEpisodeStreamUrl = async (
   anime: AnimeSearchResult,
   episode: Episode,
-  apiBase: string,
+  _apiBase: string,
   _directPlay: boolean,
-) => {
+): Promise<PlayableStreamPayload> => {
   console.log(`Resolving playable stream for episode ${episode.episodeNumber}...`);
-  return await apiGet<PlayableStreamPayload>(apiBase, '/scraper/playable-stream', {
-    anime_session: anime.session,
-    ep_session: episode.session,
-    direct: 1,
-  });
+  const showId = String(anime.session).replace(/^am-/, '');
+  const epNum = episode.episodeNumber;
+
+  for (const audio of ['sub', 'dub']) {
+    const sources = await getAmEpisodeSources(showId, epNum, audio);
+    const orderedSources = sources
+      .filter(s => s?.sourceUrl)
+      .sort((a, b) => {
+        const aDirect = /^https?:\/\//i.test(String(a.sourceUrl || '')) ? 1 : 0;
+        const bDirect = /^https?:\/\//i.test(String(b.sourceUrl || '')) ? 1 : 0;
+        return (bDirect - aDirect) || (Number(b.priority || 0) - Number(a.priority || 0));
+      });
+
+    for (const source of orderedSources) {
+      const stream = await resolveAmSource(source, audio);
+      if (stream && stream.directUrl) {
+        return { stream, url: stream.directUrl };
+      }
+      if (stream && stream.url) {
+        return { stream, url: stream.url };
+      }
+    }
+  }
+
+  throw new Error(`No playable stream found for episode ${epNum}`);
 };
 
 // ── Colored output helpers ────────────────────────────────────────
