@@ -48,7 +48,6 @@ interface CliOptions {
   animeIndex?: number;
   episode?: number;
   range?: string;
-  apiBase: string;
   player: string;
   windowSize: string;
   outputDir: string;
@@ -62,7 +61,6 @@ interface CliOptions {
 }
 
 const rl = createInterface({ input, output });
-const DEFAULT_API_BASE = 'https://yorumi-sigma.vercel.app/api';
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const getCliVersion = () => {
@@ -94,7 +92,6 @@ const parseArgs = (argv: string[]): CliOptions => {
   const queryParts: string[] = [];
   const options: CliOptions = {
     query: '',
-    apiBase: String(process.env.YORUMI_API_URL || DEFAULT_API_BASE).replace(/\/+$/, ''),
     player: String(process.env.YORUMI_PLAYER || 'mpv'),
     windowSize: String(process.env.YORUMI_PLAYER_SIZE || '960x540'),
     outputDir: getDefaultDownloadDir(),
@@ -141,12 +138,6 @@ const parseArgs = (argv: string[]): CliOptions => {
 
     if (arg === '--player' || arg === '-p') {
       options.player = String(next || options.player);
-      i += 1;
-      continue;
-    }
-
-    if (arg === '--api-base') {
-      options.apiBase = String(next || options.apiBase).replace(/\/+$/, '');
       i += 1;
       continue;
     }
@@ -517,27 +508,6 @@ const scoreStream = (stream: StreamLink) => {
   return subScore + directScore + quality;
 };
 
-const apiGet = async <T>(apiBase: string, path: string, params: Record<string, string | number | boolean | undefined> = {}): Promise<T> => {
-  const url = new URL(`${apiBase}${path}`);
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
-  });
-
-  const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
-  if (!response.ok) {
-    let message = `${response.status} ${response.statusText}`.trim();
-    try {
-      const payload = await response.json() as { error?: string; message?: string };
-      message = payload.error || payload.message || message;
-    } catch {
-      // Keep the HTTP status message when the response is not JSON.
-    }
-    throw new Error(message);
-  }
-
-  return await response.json() as T;
-};
-
 // ── AllManga direct GraphQL helpers ─────────────────────────────────
 const ALLMANGA_API = 'https://api.allanime.day/api';
 const ALLMANGA_REFERER = 'https://allmanga.to';
@@ -732,7 +702,7 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
   }
 };
 
-const searchAnime = async (_apiBase: string, query: string): Promise<AnimeSearchResult[]> => {
+const searchAnime = async (query: string): Promise<AnimeSearchResult[]> => {
   const payload = await amGql<{ data?: { shows?: { edges?: Array<{ _id?: string; name?: string; englishName?: string; availableEpisodes?: Record<string, number> }> } } }>({
     search: { allowAdult: true, allowUnknown: false, query: query.toLowerCase() },
     limit: 40, page: 1, translationType: 'sub', countryOrigin: 'ALL',
@@ -750,7 +720,7 @@ const searchAnime = async (_apiBase: string, query: string): Promise<AnimeSearch
   }).filter(r => r.title);
 };
 
-const getEpisodes = async (_apiBase: string, animeSession: string): Promise<EpisodesPayload> => {
+const getEpisodes = async (animeSession: string): Promise<EpisodesPayload> => {
   const showId = String(animeSession).replace(/^am-/, '');
   // Get show info for episode count
   const showPayload = await amGql<{ data?: { show?: { availableEpisodes?: Record<string, number> } } }>(
@@ -834,7 +804,6 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
 const resolveEpisodeStreamUrl = async (
   anime: AnimeSearchResult,
   episode: Episode,
-  _apiBase: string,
   _directPlay: boolean,
 ): Promise<PlayableStreamPayload> => {
   console.log(`Resolving playable stream for episode ${episode.episodeNumber}...`);
@@ -1262,7 +1231,7 @@ const main = async () => {
   }
 
   console.log(`Searching Yorumi for "${query}"...`);
-  const results = await searchAnime(options.apiBase, query);
+  const results = await searchAnime(query);
   const visibleResults = results.slice(0, 12);
   const requestedAnimeIndex = Number(options.animeIndex || 0);
   const anime = requestedAnimeIndex > 0 && requestedAnimeIndex <= visibleResults.length
@@ -1274,7 +1243,7 @@ const main = async () => {
     );
 
   console.log(`Fetching episodes for ${anime.title}...`);
-  const episodePayload = await getEpisodes(options.apiBase, anime.session);
+  const episodePayload = await getEpisodes(anime.session);
   const selectedEpisodes = options.range
     ? parseEpisodeRange(options.range, episodePayload.episodes)
     : [await selectEpisode(episodePayload.episodes, options.episode)];
@@ -1282,7 +1251,7 @@ const main = async () => {
 
   const resolved = [];
   for (const episode of selectedEpisodes) {
-    resolved.push(await resolveEpisodeStreamUrl(anime, episode, options.apiBase, options.directPlay));
+    resolved.push(await resolveEpisodeStreamUrl(anime, episode, options.directPlay));
   }
 
   const streamUrls = resolved.map((item) => item.url);
