@@ -541,7 +541,13 @@ h2 {
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--line);
-  overflow: hidden;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tab-list::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-button {
@@ -1090,11 +1096,45 @@ td {
     min-height: auto;
   }
 
+  .terminal-watch,
   .terminal-download,
   .player-window {
     position: static;
     width: 100%;
     margin-top: 16px;
+  }
+
+  .terminal-watch {
+    margin-top: 0;
+  }
+
+  table, thead, tbody, tr, th, td {
+    display: block;
+  }
+
+  tr {
+    border-top: 1px solid var(--line);
+  }
+
+  tr:first-child {
+    border-top: none;
+  }
+
+  th, td {
+    border-top: none;
+    width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  th {
+    padding-top: 16px;
+    padding-bottom: 2px;
+  }
+
+  td {
+    padding-top: 4px;
+    padding-bottom: 16px;
   }
 
   .docs-shell {
