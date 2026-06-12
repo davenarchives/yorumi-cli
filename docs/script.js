@@ -128,6 +128,18 @@ document.querySelectorAll('pre').forEach((pre) => {
   });
 });
 
+document.querySelectorAll('.cmd').forEach((cmdSpan) => {
+  let html = cmdSpan.textContent;
+  
+  html = html
+    .replace(/(?<=^|\s)(yorumi-cli|iwr|winget|scoop|choco|curl|iex|bash)(?=\s|$)/g, '<span class="cmd-app">$1</span>')
+    .replace(/(?<=^|\s)(-[a-zA-Z0-9]+|--[a-zA-Z0-9\-]+)(?=\s|$)/g, '<span class="cmd-flag">$1</span>')
+    .replace(/((?:"[^"]*")|(?:'[^']*'))/g, '<span class="cmd-string">$1</span>')
+    .replace(/(\|)/g, '<span class="cmd-pipe">$1</span>');
+
+  cmdSpan.innerHTML = html;
+});
+
 const docsSidebarLinks = Array.from(document.querySelectorAll('[data-docs-nav]'));
 const tocGroups = Array.from(document.querySelectorAll('[data-toc-group]'));
 const tocLinks = Array.from(document.querySelectorAll('.docs-toc a[href^="#"]'));

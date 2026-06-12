@@ -695,7 +695,20 @@ html[data-theme="light"] .code-body {
 }
 
 .cmd {
-  color: #a7f3d0;
+  color: inherit;
+}
+
+.cmd-app {
+  color: #f9e17d;
+}
+
+.cmd-flag,
+.cmd-pipe {
+  color: #8f9299;
+}
+
+.cmd-string {
+  color: #2ea8ff;
 }
 
 .feature-band {
