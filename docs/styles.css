@@ -63,6 +63,7 @@ body {
   transition: background-color 520ms ease, color 520ms ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -279,6 +280,10 @@ h1 {
   font-size: clamp(15px, 1.15vw, 17px);
 }
 
+.hero-copy {
+  min-width: 0;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -351,6 +356,7 @@ h1 {
   width: min(100%, 690px);
   height: min(560px, calc(100svh - 126px));
   min-height: 460px;
+  min-width: 0;
 }
 
 .terminal-window,
@@ -416,7 +422,8 @@ h1 {
 
 .terminal-download pre {
   white-space: pre;
-  overflow: visible;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .terminal-window strong {
@@ -1082,7 +1089,7 @@ td {
   }
 
   h1 {
-    font-size: clamp(48px, 18vw, 72px);
+    font-size: clamp(40px, 12vw, 72px);
   }
 
   .quick-stats,
