@@ -140,7 +140,7 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
-    if (arg === '--player' || arg === '-p') {
+    if (arg === '--player') {
       options.player = String(next || options.player);
       i += 1;
       continue;
@@ -188,12 +188,12 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
-    if (arg === '--latest') {
+    if (arg === '--latest' || arg === '-l') {
       options.latest = true;
       continue;
     }
 
-    if (arg === '--popular') {
+    if (arg === '--popular' || arg === '-p') {
       options.popular = true;
       continue;
     }
@@ -243,8 +243,8 @@ Options:
       --copy-audio         Keep source audio instead of converting to AAC
       --direct             Ask Yorumi for a direct stream URL when possible
       --print-url          Print resolved stream URL(s) and exit
-      --latest             Show the top latest updated anime
-      --popular            Show the top trending anime
+  -l, --latest             Show the top latest updated anime
+  -p, --popular            Show the top trending anime
   -u, --update             Update Yorumi CLI and its dependencies
       --uninstall          Remove Yorumi CLI from this machine
   -y, --yes                Skip confirmation prompts where supported
