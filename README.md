@@ -20,26 +20,12 @@ iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/instal
 
 The installer downloads `yorumi-cli`, installs private Node.js/npm and `fzf` runtimes when needed, installs dependencies, and adds the `yorumi-cli` command to PATH. Git and global Node.js/npm are optional on Windows.
 
-Winget:
-
-```powershell
-winget install Yorumi.YorumiCLI
-```
-
 Scoop:
 
 ```powershell
 scoop bucket add yorumi https://github.com/davenarchives/yorumi-cli
 scoop install yorumi-cli
 ```
-
-Chocolatey:
-
-```powershell
-choco install yorumi-cli
-```
-
-Package-manager installs require published winget/scoop/choco manifests. Until those are submitted, use the PowerShell installer.
 
 On Windows, the PowerShell installer attempts to install `mpv` and `ffmpeg` with Winget when they are missing. The CLI uses `https://yorumi-sigma.vercel.app/api` by default.
 

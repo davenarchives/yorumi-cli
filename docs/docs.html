@@ -61,22 +61,14 @@
         <div class="install-panel" data-tabs>
           <div class="tab-list" role="tablist" aria-label="Windows install options">
             <button class="tab-button active" type="button" data-tab-button="powershell">PowerShell (Recommended)</button>
-            <button class="tab-button" type="button" data-tab-button="winget">Winget</button>
             <button class="tab-button" type="button" data-tab-button="scoop">Scoop</button>
-            <button class="tab-button" type="button" data-tab-button="choco">Chocolatey</button>
           </div>
           <div class="tab-panel active" data-tab-panel="powershell">
             <pre><code><span class="cmd">iwr -useb https://raw.githubusercontent.com/davenarchives/yorumi-cli/main/install.ps1 | iex</span></code></pre>
           </div>
-          <div class="tab-panel" data-tab-panel="winget">
-            <pre><code><span class="cmd">winget install Yorumi.YorumiCLI</span></code></pre>
-          </div>
           <div class="tab-panel" data-tab-panel="scoop">
             <pre><code><span class="cmd">scoop bucket add yorumi https://github.com/davenarchives/yorumi-cli</span>
 <span class="cmd">scoop install yorumi-cli</span></code></pre>
-          </div>
-          <div class="tab-panel" data-tab-panel="choco">
-            <pre><code><span class="cmd">choco install yorumi-cli</span></code></pre>
           </div>
         </div>
 
