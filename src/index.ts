@@ -763,7 +763,7 @@ const getPopularAnime = async (): Promise<AnimeSearchResult[]> => {
     if (!response.ok) return [];
     const data = await response.json() as any;
     const trending = Array.isArray(data?.trending) ? data.trending : [];
-    return trending.map(item => {
+    return trending.map((item: any) => {
       const title = String(item.title?.english || item.title?.romaji || item.title?.native || '').trim();
       return {
         id: `animetsu-${item.anilist_id}`,
@@ -771,7 +771,7 @@ const getPopularAnime = async (): Promise<AnimeSearchResult[]> => {
         session: title,
         episodes: item.total_eps || undefined,
       };
-    }).filter(r => r.title).slice(0, 15);
+    }).filter((r: AnimeSearchResult) => r.title).slice(0, 15);
   } catch {
     return [];
   }
