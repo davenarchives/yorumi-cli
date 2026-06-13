@@ -26,6 +26,7 @@
       <a href="./index.html#install">Install</a>
       <a href="./docs.html">Docs</a>
       <a href="#changelogs">Changelogs</a>
+      <a href="#faq">FAQ</a>
       <a class="icon-link" href="https://github.com/davenarchives/yorumi-cli" rel="noreferrer" target="_blank" aria-label="Open GitHub repository">
         <span class="github-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false">
@@ -44,6 +45,7 @@
       <div class="sidebar-title">Yorumi CLI</div>
       <a class="active" href="#getting-started" data-docs-nav="getting-started">Getting Started</a>
       <a href="#changelogs" data-docs-nav="changelogs">Changelogs</a>
+      <a href="#faq" data-docs-nav="faq">FAQ</a>
     </aside>
 
     <main class="docs-main">
@@ -282,6 +284,25 @@
           </p>
         </article>
       </section>
+
+      <section id="faq" class="docs-section">
+        <h2>FAQ</h2>
+        
+        <article class="changelog-entry" id="faq-config">
+          <h3>Where is the config file?</h3>
+          <p>Yorumi CLI currently does not use a persistent configuration file or local history database. It operates fully statelessly, reading preferences through command-line flags and environment variables such as <code>YORUMI_PLAYER</code>, <code>YORUMI_PLAYER_SIZE</code>, and <code>YORUMI_DOWNLOAD_DIR</code>.</p>
+        </article>
+
+        <article class="changelog-entry" id="faq-player-not-opening">
+          <h3>mpv opens and immediately closes / crashes</h3>
+          <p>This usually happens if your mpv version is too old or missing required codecs. Make sure you install mpv via a reliable package manager (e.g., <code>winget install --id shinchiro.mpv -e</code> on Windows) to get the latest builds, rather than manually extracting an outdated binary.</p>
+        </article>
+        
+        <article class="changelog-entry" id="faq-ffmpeg">
+          <h3>Downloads fail with "ffmpeg was not found"</h3>
+          <p>Yorumi CLI uses <code>ffmpeg</code> to securely download, merge, and convert HLS streams. On Windows, the CLI can automatically install ffmpeg for you if you run the download command and confirm the prompt, or you can manually install it via <code>winget install Gyan.FFmpeg</code>.</p>
+        </article>
+      </section>
     </main>
 
     <aside class="docs-toc" aria-label="On this page">
@@ -299,6 +320,11 @@
         <a href="#docs-v0-1-2"><span class="tag-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.06-.59-1.42zM13 20.01 4 11V4h7l9 9-7 7.01zM6.5 8C7.33 8 8 7.33 8 6.5S7.33 5 6.5 5 5 5.67 5 6.5 5.67 8 6.5 8z"></path></svg></span>v0.1.2</a>
         <a href="#docs-v0-1-1"><span class="tag-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.06-.59-1.42zM13 20.01 4 11V4h7l9 9-7 7.01zM6.5 8C7.33 8 8 7.33 8 6.5S7.33 5 6.5 5 5 5.67 5 6.5 5.67 8 6.5 8z"></path></svg></span>v0.1.1</a>
         <a href="#docs-v0-1-0"><span class="tag-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.06-.59-1.42zM13 20.01 4 11V4h7l9 9-7 7.01zM6.5 8C7.33 8 8 7.33 8 6.5S7.33 5 6.5 5 5 5.67 5 6.5 5.67 8 6.5 8z"></path></svg></span>v0.1.0</a>
+      </div>
+      <div class="toc-group" data-toc-group="faq">
+        <a href="#faq-config">Where is the config file?</a>
+        <a href="#faq-player-not-opening">mpv closes immediately</a>
+        <a href="#faq-ffmpeg">Downloads fail</a>
       </div>
     </aside>
   </div>

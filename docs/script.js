@@ -163,6 +163,7 @@ if (docsSidebarLinks.length && tocGroups.length) {
   const modeTargets = [
     document.getElementById('getting-started'),
     document.getElementById('changelogs'),
+    document.getElementById('faq'),
   ].filter(Boolean);
 
   const tocTargets = tocLinks
@@ -171,9 +172,12 @@ if (docsSidebarLinks.length && tocGroups.length) {
 
   const updateDocsNavigation = () => {
     const offset = 116;
-    const mode = (document.getElementById('changelogs')?.getBoundingClientRect().top ?? Infinity) <= offset
-      ? 'changelogs'
-      : 'getting-started';
+    let mode = 'getting-started';
+    if ((document.getElementById('faq')?.getBoundingClientRect().top ?? Infinity) <= offset) {
+      mode = 'faq';
+    } else if ((document.getElementById('changelogs')?.getBoundingClientRect().top ?? Infinity) <= offset) {
+      mode = 'changelogs';
+    }
 
     setDocsMode(mode);
 

@@ -58,6 +58,8 @@ interface CliOptions {
   update: boolean;
   uninstall: boolean;
   yes: boolean;
+  latest: boolean;
+  popular: boolean;
 }
 
 const rl = createInterface({ input, output });
@@ -102,6 +104,8 @@ const parseArgs = (argv: string[]): CliOptions => {
     update: false,
     uninstall: false,
     yes: false,
+    latest: false,
+    popular: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -184,6 +188,16 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
+    if (arg === '--latest') {
+      options.latest = true;
+      continue;
+    }
+
+    if (arg === '--popular') {
+      options.popular = true;
+      continue;
+    }
+
     if (arg === '--yes' || arg === '-y') {
       options.yes = true;
       continue;
@@ -229,6 +243,8 @@ Options:
       --copy-audio         Keep source audio instead of converting to AAC
       --direct             Ask Yorumi for a direct stream URL when possible
       --print-url          Print resolved stream URL(s) and exit
+      --latest             Show the top latest updated anime
+      --popular            Show the top trending anime
   -u, --update             Update Yorumi CLI and its dependencies
       --uninstall          Remove Yorumi CLI from this machine
   -y, --yes                Skip confirmation prompts where supported
@@ -718,6 +734,47 @@ const searchAnime = async (query: string): Promise<AnimeSearchResult[]> => {
       episodes: Math.max(subEps, dubEps) || undefined,
     };
   }).filter(r => r.title);
+};
+
+const getLatestAnime = async (): Promise<AnimeSearchResult[]> => {
+  const payload = await amGql<{ data?: { shows?: { edges?: Array<{ _id?: string; name?: string; englishName?: string; availableEpisodes?: Record<string, number> }> } } }>({
+    search: { allowAdult: true, allowUnknown: false, sortBy: 'Latest_Update', sortDirection: 'DSC' },
+    limit: 15, page: 1, translationType: 'sub', countryOrigin: 'ALL',
+  }, SEARCH_GQL);
+  const edges = payload?.data?.shows?.edges || [];
+  return edges.filter(e => e?._id).map(e => {
+    const subEps = Number(e.availableEpisodes?.sub || 0);
+    const dubEps = Number(e.availableEpisodes?.dub || 0);
+    return {
+      id: `am-${e._id}`,
+      title: String(e.englishName || e.name || '').trim(),
+      session: `am-${e._id}`,
+      episodes: Math.max(subEps, dubEps) || undefined,
+    };
+  }).filter(r => r.title);
+};
+
+const getPopularAnime = async (): Promise<AnimeSearchResult[]> => {
+  try {
+    const response = await fetch('https://animetsu.net/v2/api/anime/home', {
+      headers: { 'User-Agent': ALLMANGA_UA, Referer: 'https://animetsu.net/' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return [];
+    const data = await response.json() as any;
+    const trending = Array.isArray(data?.trending) ? data.trending : [];
+    return trending.map(item => {
+      const title = String(item.title?.english || item.title?.romaji || item.title?.native || '').trim();
+      return {
+        id: `animetsu-${item.anilist_id}`,
+        title,
+        session: title,
+        episodes: item.total_eps || undefined,
+      };
+    }).filter(r => r.title).slice(0, 15);
+  } catch {
+    return [];
+  }
 };
 
 const getEpisodes = async (animeSession: string): Promise<EpisodesPayload> => {
@@ -1224,23 +1281,41 @@ const main = async () => {
     return;
   }
 
-  const query = options.query || await ask('Search anime: ');
-  if (!query) {
-    printHelp();
-    return;
+  let results: AnimeSearchResult[] = [];
+  if (options.latest) {
+    console.log(`Fetching latest updates...`);
+    results = await getLatestAnime();
+  } else if (options.popular) {
+    console.log(`Fetching popular anime...`);
+    results = await getPopularAnime();
+  } else {
+    const query = options.query || await ask('Search anime: ');
+    if (!query) {
+      printHelp();
+      return;
+    }
+    console.log(`Searching Yorumi for "${query}"...`);
+    results = await searchAnime(query);
   }
 
-  console.log(`Searching Yorumi for "${query}"...`);
-  const results = await searchAnime(query);
-  const visibleResults = results.slice(0, 12);
+  const visibleResults = results.slice(0, 15);
+  if (visibleResults.length === 0) throw new Error('No anime found.');
+
   const requestedAnimeIndex = Number(options.animeIndex || 0);
-  const anime = requestedAnimeIndex > 0 && requestedAnimeIndex <= visibleResults.length
+  let anime = requestedAnimeIndex > 0 && requestedAnimeIndex <= visibleResults.length
     ? visibleResults[requestedAnimeIndex - 1]
     : await chooseFromList<AnimeSearchResult>(
       'Anime',
       visibleResults,
       (item) => `${item.title}${item.year ? ` (${item.year})` : ''}${item.episodes ? ` - ${item.episodes} eps` : ''}`,
     );
+
+  if (anime.session && !anime.session.startsWith('am-')) {
+    console.log(`Resolving ${anime.title} on AllManga...`);
+    const amResults = await searchAnime(anime.title);
+    if (amResults.length === 0) throw new Error(`Could not find ${anime.title} on AllManga.`);
+    anime = amResults[0];
+  }
 
   console.log(`Fetching episodes for ${anime.title}...`);
   const episodePayload = await getEpisodes(anime.session);
