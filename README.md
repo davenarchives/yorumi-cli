@@ -38,12 +38,15 @@ Examples:
 ```powershell
 yorumi-cli
 yorumi-cli "One Piece"
+yorumi-cli "Attack on Titan" --sub
 yorumi-cli -e 1 "Frieren"
-yorumi-cli --episode 1 "Frieren"
+yorumi-cli -e 1 "Attack on Titan" --dub
 yorumi-cli -r "1-5" "Naruto"
+yorumi-cli -r "1-5" "Attack on Titan" --sub
 yorumi-cli --range "1-5" "Naruto"
 yorumi-cli "one piece" --episode 1120
 yorumi-cli -d -e 1 "Frieren"
+yorumi-cli -d -e 1 "Attack on Titan" --sub
 yorumi-cli -d -r "1-5" "Naruto"
 yorumi-cli --download --range "1-5" "Naruto" --output "D:\Anime"
 yorumi-cli --version

@@ -60,6 +60,8 @@ interface CliOptions {
   yes: boolean;
   latest: boolean;
   popular: boolean;
+  sub: boolean;
+  dub: boolean;
 }
 
 const rl = createInterface({ input, output });
@@ -106,6 +108,8 @@ const parseArgs = (argv: string[]): CliOptions => {
     yes: false,
     latest: false,
     popular: false,
+    sub: false,
+    dub: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -198,6 +202,16 @@ const parseArgs = (argv: string[]): CliOptions => {
       continue;
     }
 
+    if (arg === '--sub') {
+      options.sub = true;
+      continue;
+    }
+
+    if (arg === '--dub') {
+      options.dub = true;
+      continue;
+    }
+
     if (arg === '--yes' || arg === '-y') {
       options.yes = true;
       continue;
@@ -243,6 +257,8 @@ Options:
       --copy-audio         Keep source audio instead of converting to AAC
       --direct             Ask Yorumi for a direct stream URL when possible
       --print-url          Print resolved stream URL(s) and exit
+      --sub                Prefer SUBbed audio
+      --dub                Prefer DUBbed audio
   -l, --latest             Show the top latest updated anime
   -p, --popular            Show the top trending anime
   -u, --update             Update Yorumi CLI and its dependencies
@@ -862,12 +878,16 @@ const resolveEpisodeStreamUrl = async (
   anime: AnimeSearchResult,
   episode: Episode,
   _directPlay: boolean,
+  preferSub: boolean,
+  preferDub: boolean,
 ): Promise<PlayableStreamPayload> => {
   console.log(`Resolving playable stream for episode ${episode.episodeNumber}...`);
   const showId = String(anime.session).replace(/^am-/, '');
   const epNum = episode.episodeNumber;
 
-  for (const audio of ['sub', 'dub']) {
+  const audioOptions = preferDub ? ['dub'] : preferSub ? ['sub'] : ['sub', 'dub'];
+
+  for (const audio of audioOptions) {
     const sources = await getAmEpisodeSources(showId, epNum, audio);
     const orderedSources = sources
       .filter(s => s?.sourceUrl)
@@ -1326,7 +1346,7 @@ const main = async () => {
 
   const resolved = [];
   for (const episode of selectedEpisodes) {
-    resolved.push(await resolveEpisodeStreamUrl(anime, episode, options.directPlay));
+    resolved.push(await resolveEpisodeStreamUrl(anime, episode, options.directPlay, options.sub, options.dub));
   }
 
   const streamUrls = resolved.map((item) => item.url);
