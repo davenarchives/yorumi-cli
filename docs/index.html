@@ -73,7 +73,7 @@
       <div class="hero-visual" aria-label="Yorumi CLI watch and download preview">
         <article class="terminal-window terminal-watch">
           <div class="window-bar">
-            <span class="dot"></span>
+            <div class="window-dots"><span></span><span></span><span></span></div>
             <span class="window-title">Windows PowerShell</span>
           </div>
           <pre><code><span>C:\Users\Yorumi&gt; </span><strong class="term-command">yorumi-cli</strong> <span class="term-flag">-e</span> <span class="term-value">1</span> <span class="term-title">"frieren"</span>
@@ -86,7 +86,7 @@ C:\Users\Yorumi&gt;</code></pre>
 
         <article class="terminal-window terminal-download">
           <div class="window-bar">
-            <span class="dot"></span>
+            <div class="window-dots"><span></span><span></span><span></span></div>
             <span class="window-title">Download anime</span>
           </div>
           <pre><code><span>C:\Users\Yorumi&gt; </span><strong class="term-command">yorumi-cli</strong> <span class="term-flag">-d</span> <span class="term-flag">-e</span> <span class="term-value">3</span> <span class="term-title">"wistoria"</span>
@@ -97,7 +97,7 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
 
         <article class="player-window">
           <div class="window-bar">
-            <span class="dot"></span>
+            <div class="window-dots"><span></span><span></span><span></span></div>
             <span class="window-title">mpv</span>
           </div>
           <div class="player-frame"></div>
@@ -167,9 +167,7 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
 <span class="cmd">yorumi-cli -e 1 "Frieren"</span>
 <span class="cmd">yorumi-cli -e 1 "Attack on Titan" --dub</span>
 <span class="cmd">yorumi-cli -r "1-5" "Naruto"</span>
-<span class="cmd">yorumi-cli -r "1-5" "Attack on Titan" --sub</span>
 <span class="cmd">yorumi-cli -d -e 1 "Frieren"</span>
-<span class="cmd">yorumi-cli -d -e 1 "Attack on Titan" --sub</span>
 <span class="cmd">yorumi-cli --version</span>
 <span class="cmd">yorumi-cli --update</span>
 <span class="cmd">yorumi-cli --uninstall</span></code></pre>

@@ -627,8 +627,11 @@ html[data-theme="light"] .code-titlebar {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: #4a4b55;
 }
+
+.window-dots span:nth-child(1) { background: #ff5f56; }
+.window-dots span:nth-child(2) { background: #ffbd2e; }
+.window-dots span:nth-child(3) { background: #27c93f; }
 
 .code-body {
   position: relative;
