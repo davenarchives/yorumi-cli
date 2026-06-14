@@ -605,6 +605,24 @@ pre {
   background: color-mix(in srgb, var(--code-bg) 92%, var(--surface));
 }
 
+.tab-panel .code-window,
+.feature-card .code-window,
+.reference-grid article .code-window {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+}
+
+.tab-panel .code-window,
+.install-panel > .code-window {
+  border-top: 0;
+}
+
+.install-panel > .code-window {
+  border: 0;
+  border-radius: inherit;
+}
+
 .code-titlebar {
   display: flex;
   align-items: center;
