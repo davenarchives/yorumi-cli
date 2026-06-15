@@ -713,12 +713,13 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
       if (!finalUrl) return null;
       
       const isGoogleVideoHost = /(^|\.)googlevideo\.com$/i.test(new URL(finalUrl).hostname);
+      const isYouTube = finalUrl.includes("youtube.com/watch") || finalUrl.includes("youtu.be/");
       
-      // ONLY allow raw video files or googlevideo streams. 
-      // Do NOT blindly allow other links, as they are often HTML iframe embeds that mpv cannot play.
+      // ONLY allow raw video files, googlevideo streams, or YouTube embeds. 
+      // Do NOT blindly allow other links (like strmup.cc iframe pages) that mpv cannot play.
       if (
         /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(finalUrl) ||
-        isGoogleVideoHost
+        isGoogleVideoHost || isYouTube
       ) {
         return {
           quality: '720', audio, provider: 'allmanga', server: sourceName,
@@ -869,7 +870,6 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
   const origin = getStreamOrigin(referer);
 
   const args = [
-    '--no-ytdl',
     '--force-window=yes',
     '--fullscreen=no',
     `--geometry=${size}+50%+50%`,
