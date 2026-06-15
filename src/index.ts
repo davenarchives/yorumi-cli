@@ -837,6 +837,7 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
   }
 
   const args = [
+    '--no-ytdl',
     '--force-window=yes',
     '--fullscreen=no',
     `--geometry=${size}+50%+50%`,
