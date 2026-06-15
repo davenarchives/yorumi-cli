@@ -691,6 +691,8 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
 
   // Direct URL (not encoded)
   if (/^https?:\/\//i.test(sourceUrl) && !/\/clock(?:\.json)?(?:[?#]|$)/i.test(sourceUrl)) {
+    // Skip known iframe embeds
+    if (/ok\.ru|streamsb|mp4upload|embed|\/e\//i.test(sourceUrl)) return null;
     return {
       quality: '720', audio, provider: 'allmanga', server: String(source.sourceName || 'allmanga'),
       url: sourceUrl, directUrl: sourceUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(sourceUrl),
@@ -705,12 +707,9 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
   try {
     const sourceName = String(source.sourceName || 'allmanga');
     if (/fast4speed\.rsvp/i.test(fetchUrl) || sourceName === 'Yt-mp4') {
-      const finalUrl = await followRedirects(fetchUrl);
-      if (!finalUrl) return null;
-      return {
-        quality: '720', audio, provider: 'allmanga', server: sourceName,
-        url: finalUrl, directUrl: finalUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(finalUrl),
-      };
+      // yorumi-cli uses mpv which cannot play iframe embeds. Skip these sources
+      // so the scraper falls back to the next source (like Luf-mp4) which provides direct .m3u8 links.
+      return null;
     }
 
     const response = await fetch(fetchUrl, {
@@ -846,7 +845,7 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
     `--title=${title}`,
     '--msg-level=ffmpeg/demuxer=info,demux=info,cplayer=info',
     `--referrer=${referer}`,
-    `--http-header-fields=Referer: ${referer},User-Agent: ${ALLMANGA_UA}`,
+    `--http-header-fields=Referer: ${referer},Origin: https://youtu-chan.com,User-Agent: ${ALLMANGA_UA}`,
     ...urls,
   ];
   const child = spawn(playerCommand, args, {
