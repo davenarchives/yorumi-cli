@@ -73,9 +73,10 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
                    /googlevideo\.com/i.test(urls[0] || '') ||
                    /megaplay\.su/i.test(urls[0] || '');
                    
+  args.push('--hls-bitrate=max'); // Force highest quality for all HLS streams
+  
   if (isDirect) {
     args.push('--no-ytdl');
-    args.push('--hls-bitrate=max'); // Force highest quality for HLS streams (usually 1080p)
     args.push(`--referrer=${referer}`);
     args.push(`--user-agent=${GENERIC_UA}`);
   } else {
