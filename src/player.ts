@@ -33,12 +33,13 @@ export const getStreamReferer = (stream?: StreamLink) => {
     if (/^([^/]+\.)?kwik\./i.test(parsed.host)) return `${parsed.origin}/`;
     if (stream?.provider === 'allmanga') return 'https://allmanga.to/';
   } catch {
-    // ignore
+    // Fall back to GogoAnime below.
   }
-  return 'https://allmanga.to/';
+  return 'https://gogoanime.by/';
 };
 
 export const getStreamOrigin = (referer: string) => {
+  if (referer === 'https://gogoanime.by/') return 'https://gogoanime.by';
   if (referer === 'https://allmanga.to/') return 'https://allmanga.to';
   return referer.replace(/\/$/, '');
 };
