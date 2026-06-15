@@ -244,7 +244,9 @@ const main = async () => {
   }
 
   const referer = getStreamReferer(firstStream);
-  console.log(`Opening ${title} in ${options.player} (${firstStream?.quality || 'unknown'}p ${normalizeAudio(firstStream?.audio).toUpperCase()})...`);
+  const qStr = firstStream?.quality || 'unknown';
+  const displayQuality = qStr.endsWith('p') ? qStr : (qStr === 'auto' ? '1080p' : `${qStr}p`);
+  console.log(`Opening ${title} in ${options.player} (${displayQuality} ${normalizeAudio(firstStream?.audio).toUpperCase()})...`);
   await playInMediaPlayer(streamUrls, options.player, title, options.windowSize, referer);
 };
 
