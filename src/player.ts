@@ -68,8 +68,7 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
 
   // Only force custom HTTP headers if it's a direct raw stream or wixmp.
   // Passing these headers for iframes overrides yt-dlp and breaks it.
-  const isDirect = /\.(m3u8|mp4|mkv)(\?|$)/i.test(urls[0] || '') ||
-                   /wixmp\.com/i.test(urls[0] || '') ||
+  const isDirect = /wixmp\.com/i.test(urls[0] || '') ||
                    /allanime\.day/i.test(urls[0] || '') ||
                    /googlevideo\.com/i.test(urls[0] || '') ||
                    /megaplay\.su/i.test(urls[0] || '');
