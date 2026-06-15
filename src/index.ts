@@ -181,13 +181,13 @@ const main = async () => {
       return;
     }
     console.log(`Searching Yorumi for "${query}"...`);
-    results = await gogoAnimeScraper.search(query);
+    results = await searchAllAnime(query);
     if (results.length === 0) {
-      results = await searchAllAnime(query);
+      results = await gogoAnimeScraper.search(query);
     }
   }
 
-  const visibleResults = results.slice(0, 15);
+  const visibleResults = results.slice(0, 40);
   if (visibleResults.length === 0) throw new Error('No anime found.');
 
   const requestedAnimeIndex = Number(options.animeIndex || 0);
