@@ -692,7 +692,7 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
   // Direct URL (not encoded)
   if (/^https?:\/\//i.test(sourceUrl) && !/\/clock(?:\.json)?(?:[?#]|$)/i.test(sourceUrl)) {
     // Skip known iframe embeds
-    if (/ok\.ru|streamsb|mp4upload|embed|\/e\//i.test(sourceUrl)) return null;
+    if (/ok\.ru|streamsb|mp4upload|embed|\/e\/|strmup\.cc|fast4speed\.rsvp/i.test(sourceUrl)) return null;
     return {
       quality: '720', audio, provider: 'allmanga', server: String(source.sourceName || 'allmanga'),
       url: sourceUrl, directUrl: sourceUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(sourceUrl),
