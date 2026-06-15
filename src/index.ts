@@ -691,8 +691,8 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
 
   // Direct URL (not encoded)
   if (/^https?:\/\//i.test(sourceUrl) && !/\/clock(?:\.json)?(?:[?#]|$)/i.test(sourceUrl)) {
-    // Skip known iframe embeds
-    if (/ok\.ru|streamsb|mp4upload|embed|\/e\/|strmup\.cc|fast4speed\.rsvp/i.test(sourceUrl)) return null;
+    // Skip strictly HTML player embeds that mpv cannot handle
+    if (/ok\.ru|streamsb|mp4upload|embed/i.test(sourceUrl)) return null;
     return {
       quality: '720', audio, provider: 'allmanga', server: String(source.sourceName || 'allmanga'),
       url: sourceUrl, directUrl: sourceUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(sourceUrl),
@@ -706,9 +706,25 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
 
   try {
     const sourceName = String(source.sourceName || 'allmanga');
-    if (/fast4speed\.rsvp/i.test(fetchUrl) || sourceName === 'Yt-mp4') {
-      // yorumi-cli uses mpv which cannot play iframe embeds. Skip these sources
-      // so the scraper falls back to the next source (like Luf-mp4) which provides direct .m3u8 links.
+    
+    // Follow redirects for CDN links (mirrors streambert logic)
+    if (fetchUrl.includes("fast4speed.rsvp") || fetchUrl.includes("strmup.cc") || sourceName === 'Yt-mp4') {
+      const finalUrl = await followRedirects(fetchUrl).catch(() => null);
+      if (!finalUrl) return null;
+      
+      const isGoogleVideoHost = /(^|\.)googlevideo\.com$/i.test(new URL(finalUrl).hostname);
+      
+      // If it's a video file, googlevideo link, or direct media stream (not a youtube watch page)
+      if (
+        /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(finalUrl) ||
+        isGoogleVideoHost ||
+        (!finalUrl.includes("youtube.com/watch") && !finalUrl.includes("youtu.be/"))
+      ) {
+        return {
+          quality: '720', audio, provider: 'allmanga', server: sourceName,
+          url: finalUrl, directUrl: finalUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(finalUrl),
+        };
+      }
       return null;
     }
 
@@ -718,13 +734,22 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
     });
     if (!response.ok) return null;
     const data = await response.json() as { links?: Array<{ link?: string; resolutionStr?: string }> };
+    
     const links = Array.isArray(data?.links) ? data.links : [];
-    const best = links.filter(l => l?.link).sort((a, b) =>
+    const validLinks = links.filter(l => l?.link && !/ok\.ru|streamsb/i.test(l.link));
+    
+    const best = validLinks.sort((a, b) =>
       (parseInt(String(b.resolutionStr || ''), 10) || 0) - (parseInt(String(a.resolutionStr || ''), 10) || 0)
     )[0];
+    
     if (!best?.link) return null;
+    
+    // Fix the "1p" issue where resolutionStr is "-1"
+    let parsedQuality = String(best.resolutionStr || '').replace(/[^\d]/g, '');
+    if (!parsedQuality || parsedQuality === '1') parsedQuality = '720';
+
     return {
-      quality: String(best.resolutionStr || '').replace(/[^\d]/g, '') || '720',
+      quality: parsedQuality,
       audio, provider: 'allmanga', server: sourceName,
       url: best.link, directUrl: best.link, isHls: /\.m3u8(?:[?#]|$)/i.test(best.link),
     };
