@@ -50,31 +50,6 @@ export const resolveEpisodeStreamUrl = async (
   const allValidStreams: StreamLink[] = [];
 
   for (const audio of order) {
-      const knownSlug = (!isAllAnime) ? (audio === 'dub' ? `${anime.id}-dub` : String(anime.id)) : null;
-      
-      try {
-          const gogoSources = await gogoScraper.getStreams({
-              titles: [anime.title, anime.name, anime.englishName, anime.nativeName].filter(Boolean) as string[],
-              episodeNumber: epNum,
-              knownSlug: knownSlug ?? undefined,
-              episodeSession: isAllAnime ? undefined : episode.session
-          });
-          
-          if (gogoSources.length > 0) {
-              const stream: StreamLink = {
-                  quality: 'auto',
-                  audio,
-                  provider: 'gogoanime',
-                  server: String(gogoSources[0].sourceName),
-                  url: String(gogoSources[0].sourceUrl),
-                  directUrl: String(gogoSources[0].sourceUrl),
-                  isHls: false
-              };
-              if (!selectStream) return { stream, url: stream.url };
-              allValidStreams.push(stream);
-          }
-      } catch (e) {}
-
       try {
           const showId = isAllAnime ? anime.session.replace('allanime:', '') : undefined;
           const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
