@@ -714,11 +714,11 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
       
       const isGoogleVideoHost = /(^|\.)googlevideo\.com$/i.test(new URL(finalUrl).hostname);
       
-      // If it's a video file, googlevideo link, or direct media stream (not a youtube watch page)
+      // ONLY allow raw video files or googlevideo streams. 
+      // Do NOT blindly allow other links, as they are often HTML iframe embeds that mpv cannot play.
       if (
         /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(finalUrl) ||
-        isGoogleVideoHost ||
-        (!finalUrl.includes("youtube.com/watch") && !finalUrl.includes("youtu.be/"))
+        isGoogleVideoHost
       ) {
         return {
           quality: '720', audio, provider: 'allmanga', server: sourceName,
@@ -843,11 +843,17 @@ const getStreamReferer = (stream?: StreamLink) => {
   const streamUrl = String(stream?.url || '').trim();
   try {
     const parsed = new URL(streamUrl);
+    if (/(^|\.)googlevideo\.com$/i.test(parsed.hostname)) return 'https://www.youtube.com/';
     if (/^([^/]+\.)?kwik\./i.test(parsed.host)) return `${parsed.origin}/`;
   } catch {
     // Fall back to AllManga below.
   }
   return 'https://allmanga.to/';
+};
+
+const getStreamOrigin = (referer: string) => {
+  if (referer === 'https://allmanga.to/') return 'https://youtu-chan.com';
+  return referer.replace(/\/$/, '');
 };
 
 const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string, referer: string) => {
@@ -860,6 +866,8 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
     return;
   }
 
+  const origin = getStreamOrigin(referer);
+
   const args = [
     '--no-ytdl',
     '--force-window=yes',
@@ -870,7 +878,7 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
     `--title=${title}`,
     '--msg-level=ffmpeg/demuxer=info,demux=info,cplayer=info',
     `--referrer=${referer}`,
-    `--http-header-fields=Referer: ${referer},Origin: https://youtu-chan.com,User-Agent: ${ALLMANGA_UA}`,
+    `--http-header-fields=Referer: ${referer},Origin: ${origin},User-Agent: ${ALLMANGA_UA}`,
     ...urls,
   ];
   const child = spawn(playerCommand, args, {
