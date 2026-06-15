@@ -76,6 +76,7 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
                    
   if (isDirect) {
     args.push('--no-ytdl');
+    args.push('--hls-bitrate=max'); // Force highest quality for HLS streams (usually 1080p)
     args.push(`--referrer=${referer}`);
     args.push(`--user-agent=${GENERIC_UA}`);
   } else {
