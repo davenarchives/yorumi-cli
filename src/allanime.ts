@@ -201,18 +201,23 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
             }
         }
 
-        // Sort rawLinks by quality (1080p > 720p > auto > 480p > 360p)
+        // Sort rawLinks by quality and extension (m3u8 > mp4, 1080p > 720p > auto > 480p > 360p)
         rawLinks.sort((a, b) => {
-            const getVal = (q: string) => {
-                const str = q.toLowerCase();
-                if (str.includes('1080')) return 1080;
-                if (str.includes('720')) return 720;
-                if (str.includes('auto')) return 700;
-                if (str.includes('480')) return 480;
-                if (str.includes('360')) return 360;
-                return 0;
+            const getVal = (stream: any) => {
+                const str = stream.quality.toLowerCase();
+                let score = 0;
+                if (str.includes('1080')) score += 1080;
+                else if (str.includes('720')) score += 720;
+                else if (str.includes('auto')) score += 700;
+                else if (str.includes('480')) score += 480;
+                else if (str.includes('360')) score += 360;
+
+                // Heavily prioritize m3u8 (HLS) over mp4/googlevideo to avoid compressed AnimePahe proxies
+                if (stream.url.includes('.m3u8')) score += 5000;
+                
+                return score;
             };
-            return getVal(b.quality) - getVal(a.quality);
+            return getVal(b) - getVal(a);
         });
 
         return rawLinks;
