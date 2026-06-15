@@ -687,12 +687,19 @@ const getAmEpisodeSources = async (showId: string, episodeNumber: number, transl
 
 const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamLink | null> => {
   const sourceUrl = String(source.sourceUrl || '');
+  console.log(`[DEBUG] Testing sourceUrl: ${sourceUrl} | sourceName: ${source.sourceName}`);
   if (!sourceUrl) return null;
 
   // Direct URL (not encoded)
   if (/^https?:\/\//i.test(sourceUrl) && !/\/clock(?:\.json)?(?:[?#]|$)/i.test(sourceUrl)) {
-    // Skip strictly HTML player embeds that mpv cannot handle
-    if (/ok\.ru|streamsb|mp4upload|embed/i.test(sourceUrl)) return null;
+    // STRICT ALLOWLIST: only accept URLs that mpv/yt-dlp can actually play.
+    // This prevents random iframe hosts (streamlare, bysekoze, ok.ru, etc) from crashing mpv.
+    const isPlayable = 
+      /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(sourceUrl) ||
+      /wixmp\.com|fast4speed\.rsvp|youtube\.com|youtu\.be|googlevideo\.com/i.test(sourceUrl);
+
+    if (!isPlayable) return null;
+
     return {
       quality: '720', audio, provider: 'allmanga', server: String(source.sourceName || 'allmanga'),
       url: sourceUrl, directUrl: sourceUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(sourceUrl),
@@ -703,30 +710,18 @@ const resolveAmSource = async (source: AmSource, audio: string): Promise<StreamL
 
   const decodedPath = decodeAmUrl(sourceUrl).replace('/clock', '/clock.json');
   const fetchUrl = normalizeClockUrl(decodedPath);
+  console.log(`[DEBUG] fetchUrl: ${fetchUrl}`);
 
   try {
     const sourceName = String(source.sourceName || 'allmanga');
     
-    // Follow redirects for CDN links (mirrors streambert logic)
+    // ani-cli simply passes the fast4speed URL directly to mpv, and mpv's 
+    // ytdl_hook parses the redirect/iframe natively. No need to follow redirects manually.
     if (fetchUrl.includes("fast4speed.rsvp") || fetchUrl.includes("strmup.cc") || sourceName === 'Yt-mp4') {
-      const finalUrl = await followRedirects(fetchUrl).catch(() => null);
-      if (!finalUrl) return null;
-      
-      const isGoogleVideoHost = /(^|\.)googlevideo\.com$/i.test(new URL(finalUrl).hostname);
-      const isYouTube = finalUrl.includes("youtube.com/watch") || finalUrl.includes("youtu.be/");
-      
-      // ONLY allow raw video files, googlevideo streams, or YouTube embeds. 
-      // Do NOT blindly allow other links (like strmup.cc iframe pages) that mpv cannot play.
-      if (
-        /\.(mp4|webm|mkv|m3u8)(\?|$)/i.test(finalUrl) ||
-        isGoogleVideoHost || isYouTube
-      ) {
-        return {
-          quality: '720', audio, provider: 'allmanga', server: sourceName,
-          url: finalUrl, directUrl: finalUrl, isHls: /\.m3u8(?:[?#]|$)/i.test(finalUrl),
-        };
-      }
-      return null;
+      return {
+        quality: '720', audio, provider: 'allmanga', server: sourceName,
+        url: fetchUrl, directUrl: fetchUrl, isHls: false,
+      };
     }
 
     const response = await fetch(fetchUrl, {
