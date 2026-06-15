@@ -837,7 +837,6 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
   }
 
   const args = [
-    '--no-ytdl',
     '--force-window=yes',
     '--fullscreen=no',
     `--geometry=${size}+50%+50%`,
@@ -846,7 +845,7 @@ const playInMediaPlayer = async (urls: string[], player: string, title: string, 
     `--title=${title}`,
     '--msg-level=ffmpeg/demuxer=info,demux=info,cplayer=info',
     `--referrer=${referer}`,
-    `--http-header-fields=Referer: ${referer}`,
+    `--http-header-fields=Referer: ${referer},User-Agent: ${ALLMANGA_UA}`,
     ...urls,
   ];
   const child = spawn(playerCommand, args, {
