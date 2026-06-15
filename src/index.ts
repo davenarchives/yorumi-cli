@@ -169,11 +169,11 @@ const main = async () => {
 
   let results: AnimeSearchResult[] = [];
   if (options.latest) {
-    console.log('Fetching latest anime is not supported in GogoAnime mode.');
-    results = [];
+    console.log('Fetching latest anime...');
+    results = await gogoAnimeScraper.getLatest();
   } else if (options.popular) {
     console.log('Fetching popular anime...');
-    results = await getPopularAnime();
+    results = await gogoAnimeScraper.getPopular();
   } else {
     const query = options.query || await ask('Search anime: ');
     if (!query) {

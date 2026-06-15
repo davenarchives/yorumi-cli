@@ -35,27 +35,16 @@ export const getStreamReferer = (stream?: StreamLink) => {
   } catch {
     // Fall back to GogoAnime below.
   }
-  return 'https://gogoanime.me.uk/';
+  return 'https://gogoanime.by/';
 };
 
 export const getStreamOrigin = (referer: string) => {
-  if (referer === 'https://gogoanime.me.uk/') return 'https://gogoanime.is';
+  if (referer === 'https://gogoanime.by/') return 'https://gogoanime.by';
   if (referer === 'https://allmanga.to/') return 'https://allmanga.to';
   return referer.replace(/\/$/, '');
 };
 
 export const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string, referer: string) => {
-  // GogoAnime now uses Cloudflare "Redirecting..." checks which permanently break yt-dlp and mpv.
-  // We must open these streams in the default web browser instead so the user can actually watch them.
-  const isGogoAnime = urls[0]?.includes('vidstreaming') || urls[0]?.includes('gogoanime');
-  
-  if (isGogoAnime) {
-    console.log('\n[GogoAnime] Cloudflare protection detected. Opening stream securely in your default web browser...');
-    const startCmd = platform() === 'win32' ? 'start' : platform() === 'darwin' ? 'open' : 'xdg-open';
-    spawn(startCmd, [urls[0]], { shell: true, detached: true, stdio: 'ignore' }).unref();
-    return;
-  }
-
   const playerCommand = await resolvePlayerCommand(player);
   if (!playerCommand) {
     console.error(`${player} was not found, so no media-player popup can be opened.`);
@@ -79,7 +68,12 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
 
   // Only force custom HTTP headers if it's a direct raw stream or wixmp.
   // Passing these headers for iframes (ok.ru, mp4upload) overrides yt-dlp and breaks it.
-  const isDirect = /\.(m3u8|mp4|mkv)(\?|$)/i.test(urls[0] || '') || /wixmp\.com/i.test(urls[0] || '') || /allanime\.day/i.test(urls[0] || '');
+  const isDirect = /\.(m3u8|mp4|mkv)(\?|$)/i.test(urls[0] || '') ||
+                   /wixmp\.com/i.test(urls[0] || '') ||
+                   /allanime\.day/i.test(urls[0] || '') ||
+                   /googlevideo\.com/i.test(urls[0] || '') ||
+                   /megaplay\.su/i.test(urls[0] || '');
+                   
   if (isDirect) {
     args.push('--no-ytdl');
     args.push(`--referrer=${referer}`);
