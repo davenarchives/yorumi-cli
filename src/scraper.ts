@@ -80,7 +80,8 @@ export const resolveEpisodeStreamUrl = async (
           const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
           if (allAnimeStreams.length > 0) {
               for (const stream of allAnimeStreams) {
-                  if (await isStreamValid(stream.url, 'https://allmanga.to')) {
+                  // Bypass isStreamValid for Google Video / Blogger proxies because Node gets false 403s on 1080p streams
+                  if (/googlevideo\.com|allanime\.day/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
                       return { stream, url: stream.url };
                   }
               }
