@@ -68,7 +68,9 @@ function Draw-Progress($units, $label) {
     $labelText = " | $label"
     $barWidth = [Math]::Min(34, [Math]::Max(12, $columns - $labelText.Length - 14))
     $filled = [math]::Floor($barWidth * $units / $script:progressUnits)
-    $empty = $barWidth - $filled
+    $filled = [math]::Min($filled, $barWidth)
+    $empty = [math]::Max(0, $barWidth - $filled)
+    $pct = [math]::Min($pct, 100)
     $bar = ("$([char]0x2588)" * $filled) + ("-" * $empty)
     $line = "  [$bar] $($script:escape)[32m$('{0,3}%' -f $pct)$($script:escape)[0m$labelText"
 
