@@ -578,7 +578,8 @@ New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
 if (Test-Path $repoDir) {
     if ($gitAvailable -and (Test-Path (Join-Path $repoDir ".git"))) {
         Write-Info "CLI repo already exists, pulling latest changes"
-        Invoke-ProgressCommand "Updating CLI repository" "git" @("pull", "--ff-only") $repoDir
+        Invoke-ProgressCommand "Fetching updates" "git" @("fetch", "origin", $Ref) $repoDir
+        Invoke-ProgressCommand "Updating CLI repository" "git" @("reset", "--hard", "origin/$Ref") $repoDir
         Write-Success "CLI repo updated"
     } else {
         Write-Info "CLI install already exists, replacing it from GitHub archive"
