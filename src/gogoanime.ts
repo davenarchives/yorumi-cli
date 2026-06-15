@@ -334,8 +334,23 @@ export class GogoAnimeScraper {
     }
 
     async resolveSlug(titles: string[]): Promise<string | null> {
-        const validTitles = titles.filter((t) => t && t.trim().length > 1);
+        let validTitles = titles.filter((t) => t && t.trim().length > 1);
         if (validTitles.length === 0) return null;
+
+        const normalizedTitles = new Set<string>(validTitles);
+        for (const t of validTitles) {
+            const seasonMatch = t.match(/Season\s+([0-9]+)/i);
+            if (seasonMatch) {
+                const num = parseInt(seasonMatch[1], 10);
+                const suffix = num === 1 ? 'st' : num === 2 ? 'nd' : num === 3 ? 'rd' : 'th';
+                normalizedTitles.add(t.replace(/Season\s+[0-9]+/i, `${num}${suffix} Season`));
+            }
+            const nthMatch = t.match(/([0-9]+)(st|nd|rd|th)\s+Season/i);
+            if (nthMatch) {
+                normalizedTitles.add(t.replace(/[0-9]+(st|nd|rd|th)\s+Season/i, `Season ${nthMatch[1]}`));
+            }
+        }
+        validTitles = Array.from(normalizedTitles);
 
         const allResults: SearchResult[] = [];
         const seen = new Set<string>();
