@@ -20,7 +20,7 @@ const HEX_MAP: Record<string, string> = {
 };
 
 // AllAnime encrypts its stream links. We must decrypt them to give MPV the raw m3u8.
-function decryptTobeparsed(blob: string): string[] {
+function decryptTobeparsed(blob: string): { clockUrls: string[], iframeUrls: StreamLink[] } {
     try {
         const raw = Buffer.from(blob, 'base64');
         const key = crypto.createHash('sha256').update('Xot36i3lK3:v1').digest();
@@ -29,7 +29,8 @@ function decryptTobeparsed(blob: string): string[] {
         const decipher = crypto.createDecipheriv('aes-256-ctr', key, iv);
         const plain = decipher.update(ciphertext, undefined, 'utf8') + decipher.final('utf8');
         
-        const urls: string[] = [];
+        const clockUrls: string[] = [];
+        const iframeUrls: StreamLink[] = [];
         try {
             const parsed = JSON.parse(plain);
             const sourceUrls = Array.isArray(parsed) ? parsed : (parsed?.episode?.sourceUrls || []);
@@ -46,18 +47,26 @@ function decryptTobeparsed(blob: string): string[] {
                     decoded = decoded.replace(/\\u002F/gi, '/').replace(/\\\|/g, '');
                     
                     const clockPath = decoded.replace('/clock', '/clock.json');
-                    if (clockPath.startsWith('//')) urls.push(`https:${clockPath}`);
-                    else if (clockPath.startsWith('/')) urls.push(`https://allanime.day${clockPath}`);
-                    else if (/^https?:\/\//i.test(clockPath)) urls.push(clockPath);
-                    else urls.push(`https://allanime.day/${clockPath}`);
+                    if (clockPath.startsWith('//')) clockUrls.push(`https:${clockPath}`);
+                    else if (clockPath.startsWith('/')) clockUrls.push(`https://allanime.day${clockPath}`);
+                    else if (/^https?:\/\//i.test(clockPath)) clockUrls.push(clockPath);
+                    else clockUrls.push(`https://allanime.day/${clockPath}`);
+                } else if (typeof urlMatch === 'string' && urlMatch.startsWith('http')) {
+                    iframeUrls.push({
+                        server: String(item.sourceName || 'Unknown'),
+                        url: urlMatch,
+                        quality: 'auto',
+                        audio: 'sub', // audio gets overwritten by caller
+                        provider: 'allmanga'
+                    });
                 }
             }
         } catch (e) {
             console.error('[AllAnime] Error parsing decrypted JSON', e);
         }
-        return urls;
+        return { clockUrls, iframeUrls };
     } catch {
-        return [];
+        return { clockUrls: [], iframeUrls: [] };
     }
 }
 
@@ -163,16 +172,44 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
         });
         const epData = await epRes.json() as any;
 
-        const encrypted = epData?.data?.episode?.sourceUrls?.[0]?.sourceUrl || epData?.data?.tobeparsed || epData?.tobeparsed;
-        let clockUrls: string[] = [];
-        if (typeof encrypted === 'string' && encrypted.startsWith('--')) {
-            clockUrls = decryptTobeparsed(encrypted);
-        } else if (encrypted) {
-            clockUrls = decryptTobeparsed(encrypted);
-        }
-
         const rawLinks: StreamLink[] = [];
+        let clockUrls: string[] = [];
         
+        const sourceUrls = epData?.data?.episode?.sourceUrls || [];
+        for (const src of sourceUrls) {
+            const url = src.sourceUrl;
+            if (typeof url === 'string' && url.startsWith('--')) {
+                const dec = decryptTobeparsed(url);
+                clockUrls.push(...dec.clockUrls);
+                rawLinks.push(...dec.iframeUrls);
+            } else if (url && !url.startsWith('http')) {
+                const dec = decryptTobeparsed(url);
+                clockUrls.push(...dec.clockUrls);
+                rawLinks.push(...dec.iframeUrls);
+            } else if (typeof url === 'string' && url.startsWith('http')) {
+                rawLinks.push({
+                    server: String(src.sourceName || 'Unknown'),
+                    url: url,
+                    quality: 'auto',
+                    audio: audio,
+                    provider: 'allmanga'
+                });
+            }
+        }
+        
+        // Fallbacks
+        if (clockUrls.length === 0 && rawLinks.length === 0) {
+            let fallbackEnc = epData?.data?.tobeparsed || epData?.tobeparsed;
+            if (fallbackEnc) {
+                const dec = decryptTobeparsed(fallbackEnc);
+                clockUrls.push(...dec.clockUrls);
+                rawLinks.push(...dec.iframeUrls);
+            }
+        }
+        
+        // Fix audio in iframeUrls
+        for (const link of rawLinks) link.audio = audio;
+
         // 4. Resolve the clock.json files into raw m3u8
         for (const clock of clockUrls) {
             try {

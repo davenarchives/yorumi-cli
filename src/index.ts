@@ -5,7 +5,6 @@ import { homedir } from 'node:os';
 import { PACKAGE_ROOT } from './constants.js';
 import { ask, chooseFromList, selectEpisode, parseEpisodeRange, normalizeAudio } from './utils.js';
 import { getPopularAnime } from './api.js';
-import { gogoAnimeScraper } from './gogoanime.js';
 import { resolveEpisodeStreamUrl } from './scraper.js';
 import { searchAllAnime } from './allanime.js';
 import { playInMediaPlayer, getStreamReferer } from './player.js';
@@ -188,12 +187,16 @@ const main = async () => {
   }
 
   let results: AnimeSearchResult[] = [];
-  if (options.latest) {
-    console.log('Fetching latest anime...');
-    results = await gogoAnimeScraper.getLatest();
-  } else if (options.popular) {
+  if (options.popular) {
     console.log('Fetching popular anime...');
-    results = await gogoAnimeScraper.getPopular();
+    results = await getPopularAnime();
+    // Since getPopularAnime uses titles, we need to map them back to AllAnime
+    const popularAllAnime: AnimeSearchResult[] = [];
+    for (const anime of results) {
+       const mapped = await searchAllAnime(anime.title);
+       if (mapped.length > 0) popularAllAnime.push(mapped[0]);
+    }
+    results = popularAllAnime;
   } else {
     const query = options.query || await ask('Search anime: ');
     if (!query) {
@@ -202,9 +205,6 @@ const main = async () => {
     }
     console.log(`Searching Yorumi for "${query}"...`);
     results = await searchAllAnime(query);
-    if (results.length === 0) {
-      results = await gogoAnimeScraper.search(query);
-    }
   }
 
   const visibleResults = results.slice(0, 40);
@@ -234,7 +234,7 @@ const main = async () => {
     }
     episodePayload = { episodes };
   } else {
-    episodePayload = await gogoAnimeScraper.getEpisodes(anime.session);
+    throw new Error('Unsupported provider.');
   }
   const selectedEpisodes = options.range
     ? parseEpisodeRange(options.range, episodePayload.episodes)

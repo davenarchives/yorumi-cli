@@ -1,10 +1,7 @@
 import { StreamLink, AnimeSearchResult, Episode, PlayableStreamPayload } from './types.js';
-import { GogoAnimeScraper } from './gogoanime.js';
 import { fetchAllAnimeStreams } from './allanime.js';
 import https from 'node:https';
 import http from 'node:http';
-
-const gogoScraper = new GogoAnimeScraper();
 
 function isStreamValid(url: string, referer: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -55,7 +52,7 @@ export const resolveEpisodeStreamUrl = async (
           const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
           if (allAnimeStreams.length > 0) {
               for (const stream of allAnimeStreams) {
-                  if (/googlevideo\.com|allanime\.day/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
+                  if (/\.m3u8(\?|$)/i.test(stream.url) || /googlevideo\.com|allanime\.day/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
                       if (!selectStream) return { stream, url: stream.url };
                       allValidStreams.push(stream);
                   }
