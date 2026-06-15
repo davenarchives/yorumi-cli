@@ -8,13 +8,15 @@ const gogoScraper = new GogoAnimeScraper();
 
 function isStreamValid(url: string, referer: string): Promise<boolean> {
   return new Promise((resolve) => {
-    // For iframe fallbacks (like mp4upload, ok.ru), fetch the HTML and check if the video was deleted
+    if (/ok\.ru|streamlare\.com/i.test(url)) return resolve(false);
+
+    // For iframe fallbacks (like mp4upload), fetch the HTML and check if the video was deleted
     if (!/\.(m3u8|mp4|mkv)(\?|$)/i.test(url) && !/googlevideo\.com|allanime\.day|wixmp\.com/i.test(url)) {
       fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': referer } })
         .then(async res => {
           if (!res.ok) return resolve(false);
           const html = await res.text();
-          if (/file was deleted|video not found|404 not found/i.test(html)) return resolve(false);
+          if (/file was deleted|video not found|404 not found|redirecting/i.test(html)) return resolve(false);
           resolve(true);
         })
         .catch(() => resolve(false));

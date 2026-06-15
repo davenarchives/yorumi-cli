@@ -205,6 +205,26 @@ const main = async () => {
     if (results.length === 0) {
       results = await gogoAnimeScraper.search(query);
     }
+    
+    // Push specials, recaps, movies to bottom to avoid accidental selection, unless user queried for them
+    const qLower = query.toLowerCase();
+    const isSpecialQuery = qLower.includes('special') || qLower.includes('movie') || qLower.includes('recap');
+    if (!isSpecialQuery) {
+      results.sort((a, b) => {
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+        const aIsSpecial = aTitle.includes('special') || aTitle.includes('recap') || aTitle.includes('movie');
+        const bIsSpecial = bTitle.includes('special') || bTitle.includes('recap') || bTitle.includes('movie');
+        if (aIsSpecial && !bIsSpecial) return 1;
+        if (!aIsSpecial && bIsSpecial) return -1;
+        
+        // Prioritize exact matches
+        if (aTitle === qLower && bTitle !== qLower) return -1;
+        if (bTitle === qLower && aTitle !== qLower) return 1;
+        
+        return 0;
+      });
+    }
   }
 
   const visibleResults = results.slice(0, 40);
