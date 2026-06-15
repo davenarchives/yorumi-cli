@@ -33,21 +33,23 @@ function isStreamValid(url: string, referer: string): Promise<boolean> {
 export const resolveEpisodeStreamUrl = async (
   anime: AnimeSearchResult,
   episode: Episode,
-  _directPlay: boolean,
-  preferSub: boolean,
-  preferDub: boolean,
-): Promise<PlayableStreamPayload> => {
-  console.log(`Resolving playable stream for episode ${episode.episodeNumber}...`);
+  directPlay: boolean,
+  sub: boolean,
+  dub: boolean,
+  selectStream: boolean = false
+): Promise<{ stream: StreamLink; url: string }> => {
+  const isAllAnime = anime.session.startsWith('allanime:');
+  const cleanTitle = anime.title.replace(/\(Dub\)/i, '').trim();
   const epNum = episode.episodeNumber;
 
-  const audioOptions = preferDub ? ['dub'] : preferSub ? ['sub'] : ['sub', 'dub'];
+  const order = [];
+  if (sub && !dub) order.push('sub');
+  else if (dub && !sub) order.push('dub');
+  else order.push('sub', 'dub');
 
-  for (const audio of audioOptions) {
-      const isAllAnime = anime.session.startsWith('allanime:');
-      
-      const cleanTitle = (anime.title || anime.name || '').replace(/-/g, ' ');
-      
-      // Attempt GogoAnime first because its streams (gogocdn) are vastly more reliable in mpv
+  const allValidStreams: StreamLink[] = [];
+
+  for (const audio of order) {
       const knownSlug = (!isAllAnime) ? (audio === 'dub' ? `${anime.id}-dub` : String(anime.id)) : null;
       
       try {
@@ -68,27 +70,36 @@ export const resolveEpisodeStreamUrl = async (
                   directUrl: String(gogoSources[0].sourceUrl),
                   isHls: false
               };
-              return { stream, url: stream.url };
+              if (!selectStream) return { stream, url: stream.url };
+              allValidStreams.push(stream);
           }
-      } catch (e) {
-          // Ignore GogoAnime failure
-      }
+      } catch (e) {}
 
-      // Fallback to AllAnime
       try {
           const showId = isAllAnime ? anime.session.replace('allanime:', '') : undefined;
           const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
           if (allAnimeStreams.length > 0) {
               for (const stream of allAnimeStreams) {
-                  // Bypass isStreamValid for Google Video / Blogger proxies because Node gets false 403s on 1080p streams
                   if (/googlevideo\.com|allanime\.day/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
-                      return { stream, url: stream.url };
+                      if (!selectStream) return { stream, url: stream.url };
+                      allValidStreams.push(stream);
                   }
               }
           }
-      } catch (e) {
-          // Ignore AllAnime failure
+      } catch (e) {}
+  }
+
+  if (allValidStreams.length > 0) {
+      if (selectStream) {
+          const { chooseFromList } = await import('./utils.js');
+          const selected = await chooseFromList(
+              'Stream Quality / Server',
+              allValidStreams,
+              (s) => `[${s.provider}] ${s.server || 'Server'} - ${s.quality} ${String(s.audio || '').toUpperCase()}`
+          );
+          return { stream: selected, url: selected.url };
       }
+      return { stream: allValidStreams[0], url: allValidStreams[0].url };
   }
 
   throw new Error(`No playable stream found for episode ${episode.episodeNumber}`);

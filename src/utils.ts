@@ -59,9 +59,19 @@ export const chooseFromList = async <T>(
   const externalPick = await tryExternalMenu(title, items, render);
   if (externalPick) return externalPick;
 
-  throw new Error(
-    `No ${title.toLowerCase()} selected. Install fzf or rofi to use Yorumi CLI's interactive picker.`,
-  );
+  console.log(`\n=== Select ${title} ===`);
+  items.forEach((item, i) => {
+      console.log(`${i + 1}. ${render(item, i)}`);
+  });
+
+  while (true) {
+      const answer = await ask(`Select an option (1-${items.length}): `);
+      const index = parseInt(answer, 10) - 1;
+      if (!isNaN(index) && index >= 0 && index < items.length) {
+          return items[index];
+      }
+      console.log('Invalid selection.');
+  }
 };
 
 export const selectEpisode = async (episodes: Episode[], requested?: number) => {

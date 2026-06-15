@@ -55,4 +55,5 @@ export interface CliOptions {
   popular: boolean;
   sub: boolean;
   dub: boolean;
+  selectStream: boolean;
 }

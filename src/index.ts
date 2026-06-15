@@ -62,6 +62,8 @@ Options:
       --copy-audio         Keep source audio instead of converting to AAC
       --direct             Ask Yorumi for a direct stream URL when possible
       --print-url          Print resolved stream URL(s) and exit
+  -s, --select             Prompt to manually select the stream/quality
+      --player <name>      Choose video player (mpv, vlc, etc. default: mpv)
       --sub                Prefer SUBbed audio
       --dub                Prefer DUBbed audio
   -l, --latest             Show the top latest updated anime
@@ -92,6 +94,7 @@ const parseArgs = (argv: string[]): CliOptions => {
     popular: false,
     sub: false,
     dub: false,
+    selectStream: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -120,15 +123,32 @@ const parseArgs = (argv: string[]): CliOptions => {
       options.animeIndex = Number(next);
       i += 1;
       continue;
-    }
-    if (arg === '--player') {
+    } else if (arg === '--player') {
       options.player = String(next || options.player);
       i += 1;
       continue;
-    }
-    if (arg === '--size') {
+    } else if (arg === '--size') {
       options.windowSize = String(next || options.windowSize);
       i += 1;
+      continue;
+    } else if (/^--print-url$/i.test(arg)) {
+      options.printUrl = true;
+      continue;
+    } else if (/^-(s|-select)$/i.test(arg)) {
+      options.selectStream = true;
+      continue;
+    } else if (/^--player$/i.test(arg) && next) {
+      options.player = next;
+      i += 1;
+      continue;
+    } else if (/^--sub$/i.test(arg)) {
+      options.sub = true;
+      continue;
+    } else if (/^--dub$/i.test(arg)) {
+      options.dub = true;
+      continue;
+    } else if (/^-y|--yes$/i.test(arg)) {
+      options.yes = true;
       continue;
     }
     if (arg === '--output' || arg === '-o') {
@@ -224,7 +244,8 @@ const main = async () => {
 
   const resolved = [];
   for (const episode of selectedEpisodes) {
-    resolved.push(await resolveEpisodeStreamUrl(anime, episode, options.directPlay, options.sub, options.dub));
+    console.log(`Resolving playable stream for episode ${episode.episodeNumber}...`);
+    resolved.push(await resolveEpisodeStreamUrl(anime, episode, options.directPlay, options.sub, options.dub, options.selectStream));
   }
 
   const streamUrls = resolved.map((item) => item.url);
