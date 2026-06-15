@@ -77,8 +77,10 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
     args.push(`--user-agent=${GENERIC_UA}`);
   } else {
     args.push('--ytdl-format=bestvideo[height<=?1080]+bestaudio/best');
-    // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked
-    args.push(`--ytdl-raw-options=add-header=Referer:${referer},add-header=User-Agent:${GENERIC_UA}`);
+    // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked.
+    // mpv's ytdl-raw-options splits by comma, so we MUST remove commas from the User-Agent!
+    const safeUa = GENERIC_UA.replace(/,/g, '');
+    args.push(`--ytdl-raw-options=add-header=Referer:${referer},add-header=User-Agent:${safeUa}`);
   }
 
   args.push(...urls);
