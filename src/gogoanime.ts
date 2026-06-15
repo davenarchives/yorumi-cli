@@ -140,7 +140,29 @@ function titleScore(candidate: string, targets: string[]): number {
 
 function pickBestSlug(results: SearchResult[], titles: string[]): string | null {
     if (results.length === 0) return null;
-    const scored = results.map((r) => ({ r, score: titleScore(r.title, titles) }));
+    const scored = results.map((r) => {
+        let score = titleScore(r.title, titles);
+        
+        // Penalize results that have a season number if our target doesn't
+        const hasSeasonTarget = titles.some(t => /season|nd|rd|th/i.test(t));
+        const resultHasSeason = /season\s+[0-9]+|[0-9]+(?:st|nd|rd|th)\s+season/i.test(r.title);
+        
+        if (!hasSeasonTarget && resultHasSeason) {
+            score -= 30; // Heavy penalty if the result is a specific season but our target isn't
+        }
+        
+        // Boost exact matches (ignoring things like " (TV)" or " (Dub)")
+        const cleanTitle = r.title.replace(/\s*\([^)]+\)/g, '').trim().toLowerCase();
+        for (const t of titles) {
+            if (cleanTitle === t.toLowerCase().trim()) {
+                score += 40;
+                break;
+            }
+        }
+
+        return { r, score };
+    });
+    
     scored.sort((a, b) => b.score - a.score);
     const best = scored[0];
     if (best.score < 40) return null;

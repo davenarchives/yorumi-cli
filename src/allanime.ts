@@ -201,6 +201,20 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
             }
         }
 
+        // Sort rawLinks by quality (1080p > 720p > auto > 480p > 360p)
+        rawLinks.sort((a, b) => {
+            const getVal = (q: string) => {
+                const str = q.toLowerCase();
+                if (str.includes('1080')) return 1080;
+                if (str.includes('720')) return 720;
+                if (str.includes('auto')) return 700;
+                if (str.includes('480')) return 480;
+                if (str.includes('360')) return 360;
+                return 0;
+            };
+            return getVal(b.quality) - getVal(a.quality);
+        });
+
         return rawLinks;
     } catch (e) {
         return [];

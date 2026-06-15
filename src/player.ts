@@ -66,13 +66,9 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
     '--msg-level=ffmpeg/demuxer=info,demux=info,cplayer=info',
   ];
 
-  // Only force custom HTTP headers if it's a direct raw stream or wixmp.
-  // Passing these headers for iframes (ok.ru, mp4upload) overrides yt-dlp and breaks it.
-  const isDirect = /\.(m3u8|mp4|mkv)(\?|$)/i.test(urls[0] || '') ||
-                   /wixmp\.com/i.test(urls[0] || '') ||
-                   /allanime\.day/i.test(urls[0] || '') ||
-                   /googlevideo\.com/i.test(urls[0] || '') ||
-                   /megaplay\.su/i.test(urls[0] || '');
+  // Only force custom HTTP headers and bypass yt-dlp if it's a direct HLS stream.
+  // Passing these headers for iframes overrides yt-dlp and breaks it.
+  const isDirect = /\.(m3u8)(\?|$)/i.test(urls[0] || '');
                    
   if (isDirect) {
     args.push('--no-ytdl');
@@ -81,6 +77,8 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
     args.push(`--user-agent=${GENERIC_UA}`);
   } else {
     args.push('--ytdl-format=bestvideo[height<=?1080]+bestaudio/best');
+    // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked
+    args.push(`--ytdl-raw-options=add-header=Referer:${referer},add-header=User-Agent:${GENERIC_UA}`);
   }
 
   args.push(...urls);
