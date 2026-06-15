@@ -252,6 +252,13 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
                 // Heavily prioritize m3u8 (HLS) over mp4/googlevideo to avoid compressed AnimePahe proxies
                 if (stream.url.includes('.m3u8')) score += 5000;
                 
+                // Prioritize known reliable iframe fallbacks
+                if (stream.server === 'Mp4' || stream.url.includes('mp4upload.com')) score += 100;
+                // Deprioritize known unreliable/broken iframe fallbacks
+                if (stream.server === 'Ok' || stream.url.includes('ok.ru')) score -= 500;
+                if (stream.server === 'Ss-Hls' || stream.url.includes('streamsb')) score -= 500;
+                if (stream.server === 'Sl-mp4' || stream.url.includes('streamlare')) score -= 500;
+                
                 return score;
             };
             return getVal(b) - getVal(a);
