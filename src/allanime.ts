@@ -210,11 +210,11 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
         // Fix audio in iframeUrls
         for (const link of rawLinks) link.audio = audio;
 
-        // 4. Resolve the clock.json files into raw m3u8
-        for (const clock of clockUrls) {
+        // 4. Resolve the clock.json files into raw m3u8 concurrently
+        await Promise.all(clockUrls.map(async (clock) => {
             try {
                 const ac = new AbortController();
-                const timeout = setTimeout(() => ac.abort(), 6000);
+                const timeout = setTimeout(() => ac.abort(), 3500);
                 const res = await fetch(clock, {
                     headers: { 'User-Agent': USER_AGENT, 'Referer': REFERER },
                     signal: ac.signal
@@ -236,7 +236,7 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
             } catch (ce) {
                 // Ignore fetch errors to continue attempting others
             }
-        }
+        }));
 
         rawLinks = rawLinks.filter(stream => {
             const u = stream.url.toLowerCase();

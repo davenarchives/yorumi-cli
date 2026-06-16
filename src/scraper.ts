@@ -9,14 +9,20 @@ function isStreamValid(url: string, referer: string): Promise<boolean> {
 
     // For iframe fallbacks (like mp4upload), fetch the HTML and check if the video was deleted
     if (!/\.(m3u8|mkv)(\?|$)/i.test(url) && !/googlevideo\.com|allanime\.day|wixmp\.com/i.test(url)) {
-      fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': referer } })
+      const ac = new AbortController();
+      const timeout = setTimeout(() => ac.abort(), 4000);
+      fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': referer }, signal: ac.signal })
         .then(async res => {
+          clearTimeout(timeout);
           if (!res.ok) return resolve(false);
           const html = await res.text();
           if (/file was deleted|video not found|404 not found|redirecting/i.test(html)) return resolve(false);
           resolve(true);
         })
-        .catch(() => resolve(false));
+        .catch(() => {
+          clearTimeout(timeout);
+          resolve(false);
+        });
       return;
     }
     const client = url.startsWith('https') ? https : http;
@@ -33,6 +39,10 @@ function isStreamValid(url: string, referer: string): Promise<boolean> {
       else resolve(false);
     });
     req.on('error', () => resolve(false));
+    req.setTimeout(4000, () => {
+      req.destroy();
+      resolve(false);
+    });
     req.end();
   });
 }
@@ -61,7 +71,7 @@ export const resolveEpisodeStreamUrl = async (
           const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
           if (allAnimeStreams.length > 0) {
               for (const stream of allAnimeStreams) {
-                  if (/googlevideo\.com|allanime\.day/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
+                  if (/googlevideo\.com|allanime\.day|wixmp\.com/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
                       if (!selectStream) return { stream, url: stream.url };
                       allValidStreams.push(stream);
                   }
