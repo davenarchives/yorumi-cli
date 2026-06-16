@@ -172,7 +172,7 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
         });
         const epData = await epRes.json() as any;
 
-        const rawLinks: StreamLink[] = [];
+        let rawLinks: StreamLink[] = [];
         let clockUrls: string[] = [];
         
         const sourceUrls = epData?.data?.episode?.sourceUrls || [];
@@ -238,7 +238,15 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
             }
         }
 
-        // Sort rawLinks by quality and extension (m3u8 > mp4, 1080p > 720p > auto > 480p > 360p)
+        rawLinks = rawLinks.filter(stream => {
+            const u = stream.url.toLowerCase();
+            // ONLY allow streams that explicitly contain .m3u8 or are googlevideo streams
+            if (u.includes('.m3u8')) return true;
+            if (u.includes('googlevideo.com')) return true;
+            return false;
+        });
+
+        // Sort rawLinks by quality and extension (1080p > 720p > auto > 480p > 360p)
         rawLinks.sort((a, b) => {
             const getVal = (stream: any) => {
                 const str = stream.quality.toLowerCase();
@@ -249,7 +257,7 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
                 else if (str.includes('480')) score += 480;
                 else if (str.includes('360')) score += 360;
 
-                // Heavily prioritize m3u8 (HLS) over mp4/googlevideo to avoid compressed AnimePahe proxies
+                // Heavily prioritize m3u8 (HLS)
                 if (stream.url.includes('.m3u8')) score += 5000;
                 
                 // Prioritize known reliable iframe fallbacks

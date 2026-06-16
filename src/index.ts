@@ -5,7 +5,6 @@ import { homedir } from 'node:os';
 import { PACKAGE_ROOT } from './constants.js';
 import { ask, chooseFromList, selectEpisode, parseEpisodeRange, normalizeAudio } from './utils.js';
 import { getPopularAnime } from './api.js';
-import { gogoAnimeScraper } from './gogoanime.js';
 import { resolveEpisodeStreamUrl } from './scraper.js';
 import { searchAllAnime } from './allanime.js';
 import { playInMediaPlayer, getStreamReferer } from './player.js';
@@ -190,10 +189,10 @@ const main = async () => {
   let results: AnimeSearchResult[] = [];
   if (options.latest) {
     console.log('Fetching latest anime...');
-    results = await gogoAnimeScraper.getLatest();
+    results = await getPopularAnime();
   } else if (options.popular) {
     console.log('Fetching popular anime...');
-    results = await gogoAnimeScraper.getPopular();
+    results = await getPopularAnime();
   } else {
     const query = options.query || await ask('Search anime: ');
     if (!query) {
@@ -202,9 +201,6 @@ const main = async () => {
     }
     console.log(`Searching Yorumi for "${query}"...`);
     results = await searchAllAnime(query);
-    if (results.length === 0) {
-      results = await gogoAnimeScraper.search(query);
-    }
     
     // Push specials, recaps, movies to bottom to avoid accidental selection, unless user queried for them
     const qLower = query.toLowerCase();
@@ -241,21 +237,28 @@ const main = async () => {
 
   console.log(`Fetching episodes for ${anime.title}...`);
   let episodePayload;
-  if (anime.session.startsWith('allanime:')) {
-    const showId = anime.session.replace('allanime:', '');
-    const maxEp = anime.episodes || 1;
-    const episodes = [];
-    for (let i = 1; i <= maxEp; i++) {
-      episodes.push({
-        id: `allanime:${showId}-ep-${i}`,
-        session: `allanime:${showId}-ep-${i}`,
-        episodeNumber: i
-      });
+  
+  if (!anime.session.startsWith('allanime:')) {
+    console.log(`Matching ${anime.title} on AllAnime...`);
+    const searchRes = await searchAllAnime(anime.title);
+    if (searchRes.length > 0) {
+      anime = searchRes[0];
+    } else {
+      throw new Error(`Anime not found on AllAnime: ${anime.title}`);
     }
-    episodePayload = { episodes };
-  } else {
-    episodePayload = await gogoAnimeScraper.getEpisodes(anime.session);
   }
+
+  const showId = anime.session.replace('allanime:', '');
+  const maxEp = anime.episodes || 1;
+  const episodes = [];
+  for (let i = 1; i <= maxEp; i++) {
+    episodes.push({
+      id: `allanime:${showId}-ep-${i}`,
+      session: `allanime:${showId}-ep-${i}`,
+      episodeNumber: i
+    });
+  }
+  episodePayload = { episodes };
   const selectedEpisodes = options.range
     ? parseEpisodeRange(options.range, episodePayload.episodes)
     : [await selectEpisode(episodePayload.episodes, options.episode)];
