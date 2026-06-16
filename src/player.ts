@@ -79,6 +79,12 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
     args.push(`--referrer=${referer}`);
     args.push(`--user-agent=${GENERIC_UA}`);
   } else {
+    if (!(await commandExists('yt-dlp'))) {
+      console.error('\n[Error] yt-dlp is required to play this stream but was not found.');
+      console.error('Please install it using: winget install yt-dlp.yt-dlp');
+      console.error('After installation, restart your terminal to update the PATH.');
+      return;
+    }
     args.push('--ytdl-format=bestvideo[height<=?1080]+bestaudio/best');
     // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked.
     // mpv's ytdl-raw-options splits by comma, so we MUST remove commas from the User-Agent!
@@ -89,8 +95,13 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
   args.push(...urls);
   const child = spawn(playerCommand, args, {
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'pipe'],
     windowsHide: false,
+  });
+
+  let stderrOutput = '';
+  child.stderr?.on('data', (chunk) => {
+    stderrOutput += chunk.toString();
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -103,7 +114,8 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
     child.once('exit', (code) => {
       clearTimeout(timer);
       if (code && code !== 0) {
-        reject(new Error(`${playerCommand} exited with code ${code}.`));
+        const errStr = stderrOutput.trim() ? `\nMPV Error Output:\n${stderrOutput.trim()}` : '';
+        reject(new Error(`${playerCommand} exited with code ${code}.${errStr}`));
         return;
       }
       resolve();
