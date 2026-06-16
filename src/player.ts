@@ -87,9 +87,10 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
     }
     args.push('--ytdl-format=bestvideo[height<=?1080]+bestaudio/best');
     // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked.
-    // mpv's ytdl-raw-options splits by comma, so we MUST remove commas from the User-Agent!
+    // mpv's ytdl-raw-options uses a dictionary format, so duplicate keys like 'add-header' overwrite each other.
+    // We must use the explicit 'referer' and 'user-agent' yt-dlp arguments instead to pass both!
     const safeUa = GENERIC_UA.replace(/,/g, '');
-    args.push(`--ytdl-raw-options=add-header=Referer:${referer},add-header=User-Agent:${safeUa}`);
+    args.push(`--ytdl-raw-options=referer=${referer},user-agent=${safeUa}`);
   }
 
   args.push(...urls);
