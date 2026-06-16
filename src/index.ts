@@ -79,7 +79,7 @@ const parseArgs = (argv: string[]): CliOptions => {
   const options: CliOptions = {
     query: '',
     player: String(process.env.YORUMI_PLAYER || 'mpv'),
-    windowSize: String(process.env.YORUMI_PLAYER_SIZE || '960x540'),
+    windowSize: String(process.env.YORUMI_PLAYER_SIZE || '1280x720'),
     outputDir: getDefaultDownloadDir(),
     printUrl: false,
     directPlay: false,

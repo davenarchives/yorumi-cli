@@ -85,9 +85,8 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
       console.error('After installation, restart your terminal to update the PATH.');
       return;
     }
-    args.push('--ytdl-format=bestvideo[height<=?1080]+bestaudio/best');
+    args.push('--ytdl-format=bestvideo[height<=?720]+bestaudio/best');
     // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked.
-    // mpv's ytdl-raw-options uses a dictionary format, so duplicate keys like 'add-header' overwrite each other.
     // We must use the explicit 'referer' and 'user-agent' yt-dlp arguments instead to pass both!
     const safeUa = GENERIC_UA.replace(/,/g, '');
     args.push(`--ytdl-raw-options=referer=${referer},user-agent=${safeUa}`);

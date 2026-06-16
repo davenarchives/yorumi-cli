@@ -322,13 +322,13 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
             return false;
         });
 
-        // Sort rawLinks by quality and extension (1080p > 720p > auto > 480p > 360p)
+        // Sort rawLinks by quality and extension (720p > 1080p > auto > 480p > 360p)
         rawLinks.sort((a, b) => {
             const getVal = (stream: any) => {
                 const str = stream.quality.toLowerCase();
                 let score = 0;
-                if (str.includes('1080')) score += 1080;
-                else if (str.includes('720')) score += 720;
+                if (str.includes('720')) score += 720;
+                else if (str.includes('1080')) score += 710; // 720p preferred over 1080p
                 else if (str.includes('auto')) score += 700;
                 else if (str.includes('480')) score += 480;
                 else if (str.includes('360')) score += 360;
