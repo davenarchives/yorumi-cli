@@ -70,6 +70,70 @@ function decryptTobeparsed(blob: string): { clockUrls: string[], iframeUrls: Str
     }
 }
 
+export async function getLatestAnime(): Promise<AnimeSearchResult[]> {
+    try {
+        const searchQueryGql = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name availableEpisodes}}}`;
+        const searchRes = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT, 'Origin': REFERER },
+            body: JSON.stringify({
+                query: searchQueryGql,
+                variables: {
+                    search: { allowAdult: false, allowUnknown: false, sortBy: "Latest_Update", sortDirection: "DSC" },
+                    limit: 15,
+                    page: 1,
+                    translationType: "sub",
+                    countryOrigin: "ALL"
+                }
+            })
+        });
+        const searchData = await searchRes.json() as any;
+        const edges = searchData?.data?.shows?.edges || [];
+
+        return edges.map((show: any) => ({
+            id: show._id,
+            title: show.name,
+            session: show._id,
+            episodes: show.availableEpisodes?.sub || show.availableEpisodes?.dub || undefined,
+            allMangaId: show._id,
+        }));
+    } catch (e) {
+        return [];
+    }
+}
+
+export async function getPopularAnime(): Promise<AnimeSearchResult[]> {
+    try {
+        const searchQueryGql = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name availableEpisodes}}}`;
+        const searchRes = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT, 'Origin': REFERER },
+            body: JSON.stringify({
+                query: searchQueryGql,
+                variables: {
+                    search: { allowAdult: false, allowUnknown: false, sortBy: "Score", sortDirection: "DSC" },
+                    limit: 15,
+                    page: 1,
+                    translationType: "sub",
+                    countryOrigin: "ALL"
+                }
+            })
+        });
+        const searchData = await searchRes.json() as any;
+        const edges = searchData?.data?.shows?.edges || [];
+
+        return edges.map((show: any) => ({
+            id: show._id,
+            title: show.name,
+            session: show._id,
+            episodes: show.availableEpisodes?.sub || show.availableEpisodes?.dub || undefined,
+            allMangaId: show._id,
+        }));
+    } catch (e) {
+        return [];
+    }
+}
+
 export async function searchAllAnime(query: string): Promise<AnimeSearchResult[]> {
     try {
         const searchQuery = query.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();

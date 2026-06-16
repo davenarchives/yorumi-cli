@@ -4,9 +4,8 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { PACKAGE_ROOT } from './constants.js';
 import { ask, chooseFromList, selectEpisode, parseEpisodeRange, normalizeAudio } from './utils.js';
-import { getPopularAnime } from './api.js';
 import { resolveEpisodeStreamUrl } from './scraper.js';
-import { searchAllAnime } from './allanime.js';
+import { searchAllAnime, getLatestAnime, getPopularAnime } from './allanime.js';
 import { playInMediaPlayer, getStreamReferer } from './player.js';
 import { downloadEpisodes } from './downloader.js';
 import { updateYorumiCli, uninstallYorumiCli } from './system.js';
@@ -189,7 +188,7 @@ const main = async () => {
   let results: AnimeSearchResult[] = [];
   if (options.latest) {
     console.log('Fetching latest anime...');
-    results = await getPopularAnime();
+    results = await getLatestAnime();
   } else if (options.popular) {
     console.log('Fetching popular anime...');
     results = await getPopularAnime();
