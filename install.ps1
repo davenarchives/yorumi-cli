@@ -36,7 +36,7 @@ function Write-Header($message) {
 
 # ── Progress bar ───────────────────────────────────────────────────
 
-$script:totalSteps = 8
+$script:totalSteps = 9
 $script:currentStep = 0
 $script:currentUnits = 0
 $script:progressUnits = 100
@@ -507,6 +507,52 @@ function Ensure-Mpv {
     }
 }
 
+function Test-YtdlpInstalled {
+    if (Get-Command "yt-dlp" -ErrorAction SilentlyContinue) { return $true }
+
+    $candidates = @(
+        "C:\Program Files\yt-dlp\yt-dlp.exe",
+        "C:\Program Files (x86)\yt-dlp\yt-dlp.exe"
+    )
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return $true }
+    }
+
+    return $false
+}
+
+function Ensure-Ytdlp {
+    if (Test-YtdlpInstalled) {
+        Complete-ProgressStep "Checking yt-dlp"
+        Write-Success "yt-dlp found"
+        return
+    }
+
+    if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+        Complete-ProgressStep "Checking yt-dlp"
+        Write-Warn "yt-dlp was not found and winget is unavailable"
+        Write-Note "Install yt-dlp manually: https://github.com/yt-dlp/yt-dlp"
+        return
+    }
+
+    Write-Info "yt-dlp not found, installing with winget"
+    Invoke-ProgressCommand "Installing yt-dlp" "winget" @(
+        "install",
+        "--id", "yt-dlp.yt-dlp",
+        "-e",
+        "--accept-package-agreements",
+        "--accept-source-agreements"
+    ) $PWD.Path
+
+    if (Test-YtdlpInstalled) {
+        Write-Success "yt-dlp installed"
+    } else {
+        Write-Warn "yt-dlp installed, but PATH may need a new terminal"
+        Write-Note "If playback fails, reopen PowerShell and run yorumi-cli again."
+    }
+}
+
 function Test-FfmpegInstalled {
     if (Get-Command "ffmpeg" -ErrorAction SilentlyContinue) { return $true }
 
@@ -569,6 +615,7 @@ if ($gitAvailable) {
 }
 Ensure-NodeRuntime
 Ensure-Mpv
+Ensure-Ytdlp
 Ensure-Ffmpeg
 Ensure-Fzf
 

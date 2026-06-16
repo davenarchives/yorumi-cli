@@ -45,7 +45,7 @@ write_header() {
 
 # ── Progress bar ───────────────────────────────────────────────────
 
-TOTAL_STEPS=4
+TOTAL_STEPS=5
 CURRENT_STEP=0
 CURRENT_UNITS=0
 PROGRESS_UNITS=100
@@ -164,6 +164,13 @@ else
     write_note "Install it via your package manager (e.g. apt, brew, pacman)"
 fi
 
+if command -v yt-dlp &> /dev/null; then
+    write_success "yt-dlp found"
+else
+    write_warn "yt-dlp was not found on PATH"
+    write_note "Install it via your package manager (e.g. apt, brew, pacman, pip)"
+fi
+
 if command -v ffmpeg &> /dev/null; then
     write_success "ffmpeg found"
 else
@@ -222,6 +229,9 @@ echo ""
 write_info "Run: yorumi-cli --help"
 if ! command -v mpv &> /dev/null; then
     write_warn "Install mpv before running yorumi-cli."
+fi
+if ! command -v yt-dlp &> /dev/null; then
+    write_warn "Install yt-dlp so fallback providers work correctly."
 fi
 if ! command -v ffmpeg &> /dev/null; then
     write_warn "Install ffmpeg before using yorumi-cli --download."
