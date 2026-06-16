@@ -240,9 +240,21 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
 
         rawLinks = rawLinks.filter(stream => {
             const u = stream.url.toLowerCase();
-            // ONLY allow streams that explicitly contain .m3u8 or are googlevideo streams
+            // Allow native HLS streams
             if (u.includes('.m3u8')) return true;
             if (u.includes('googlevideo.com')) return true;
+            
+            // Allow highly reliable iframes that yt-dlp fully supports
+            if (u.includes('ok.ru')) return true;
+            if (u.includes('vk.com')) return true;
+            
+            // Explicitly block problematic iframes that crash mpv/yt-dlp
+            if (u.includes('streamwish')) return false;
+            if (u.includes('bysekoze')) return false;
+            if (u.includes('filemoon')) return false;
+            if (u.includes('streamlare')) return false;
+            if (u.includes('mp4upload')) return false;
+            
             return false;
         });
 
