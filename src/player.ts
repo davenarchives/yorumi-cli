@@ -1,7 +1,6 @@
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
 import { StreamLink } from './types.js';
 import { commandExists } from './utils.js';
 const GENERIC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';

@@ -1,4 +1,4 @@
-import { StreamLink, AnimeSearchResult, Episode, PlayableStreamPayload } from './types.js';
+import { StreamLink, AnimeSearchResult, Episode } from './types.js';
 import { fetchAllAnimeStreams } from './allanime.js';
 import https from 'node:https';
 import http from 'node:http';

@@ -176,7 +176,7 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
         
         if (!showIdToUse) {
             // 1. Convert DMCA names (only for matching, not searching)
-            let searchQuery = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+            const searchQuery = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
 
             // 2. Search AllAnime using POST (does not require Captcha)
             const searchQueryGql = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name}}}`;
@@ -237,7 +237,7 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
         const epData = await epRes.json() as any;
 
         let rawLinks: StreamLink[] = [];
-        let clockUrls: string[] = [];
+        const clockUrls: string[] = [];
         
         const sourceUrls = epData?.data?.episode?.sourceUrls || [];
         for (const src of sourceUrls) {
@@ -263,7 +263,7 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
         
         // Fallbacks
         if (clockUrls.length === 0 && rawLinks.length === 0) {
-            let fallbackEnc = epData?.data?.tobeparsed || epData?.tobeparsed;
+            const fallbackEnc = epData?.data?.tobeparsed || epData?.tobeparsed;
             if (fallbackEnc) {
                 const dec = decryptTobeparsed(fallbackEnc);
                 clockUrls.push(...dec.clockUrls);

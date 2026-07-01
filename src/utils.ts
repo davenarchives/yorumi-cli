@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { platform, homedir } from 'node:os';
+import { platform } from 'node:os';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createInterface } from 'node:readline/promises';
