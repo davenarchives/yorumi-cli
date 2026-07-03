@@ -672,6 +672,9 @@ Write-Info "Run: yorumi-cli --help"
 if (-not (Get-Command "mpv" -ErrorAction SilentlyContinue)) {
     Write-Warn "If mpv was just installed, reopen your terminal before running yorumi-cli."
 }
+if (-not (Get-Command "yt-dlp" -ErrorAction SilentlyContinue)) {
+    Write-Warn "If yt-dlp was just installed, reopen your terminal before using fallback providers."
+}
 if (-not (Get-Command "ffmpeg" -ErrorAction SilentlyContinue)) {
     Write-Warn "If ffmpeg was just installed, reopen your terminal before using yorumi-cli --download."
 }

@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { StreamLink } from './types.js';
 import { commandExists } from './utils.js';
 const GENERIC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -42,6 +42,59 @@ export const getStreamOrigin = (referer: string) => {
   return referer.replace(/\/$/, '');
 };
 
+const isDirectMediaUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    if (/\.(m3u8|mp4|mkv|webm|mov)(?:[?#]|$)/i.test(url)) return true;
+    if (/(^|\.)googlevideo\.com$/i.test(host)) return true;
+    if (/(^|\.)allanime\.day$/i.test(host)) return true;
+    if (/(^|\.)wixmp\.com$/i.test(host)) return true;
+    if (/(^|\.)okcdn\.ru$/i.test(host)) return true;
+    if (/(^|\.)megaplay\.su$/i.test(host)) return true;
+    if (/^(localhost|127\.0\.0\.1)$/i.test(host)) return true;
+  } catch {
+    // Fall through to false.
+  }
+
+  return false;
+};
+
+const resolveWithYtdlp = (url: string, referer: string) => {
+  const result = spawnSync('yt-dlp', [
+    '--no-playlist',
+    '--dump-json',
+    '--format',
+    'best[height<=?720]/best',
+    '--referer',
+    referer,
+    '--user-agent',
+    GENERIC_UA,
+    url,
+  ], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+    timeout: 30_000,
+  });
+
+  if (result.status !== 0 || !result.stdout.trim()) return null;
+
+  try {
+    const parsed = JSON.parse(result.stdout.trim());
+    const directUrl = String(parsed?.url || parsed?.requested_downloads?.[0]?.url || '').trim();
+    if (!directUrl) return null;
+
+    const headers = parsed?.http_headers || {};
+    return {
+      url: directUrl,
+      referer: String(headers.Referer || headers.referer || referer),
+      userAgent: String(headers['User-Agent'] || headers['user-agent'] || GENERIC_UA),
+    };
+  } catch {
+    return null;
+  }
+};
+
 export const playInMediaPlayer = async (urls: string[], player: string, title: string, size: string, referer: string) => {
   const playerCommand = await resolvePlayerCommand(player);
   if (!playerCommand) {
@@ -53,45 +106,79 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
   }
 
   const origin = getStreamOrigin(referer);
+  const originalUrls = [...urls];
+  let playbackUrls = [...urls];
+  let playbackReferer = referer;
+  let playbackUserAgent = GENERIC_UA;
 
   const args = [
-    '--force-window=yes',
+    '--force-window=immediate',
     '--fullscreen=no',
     `--geometry=${size}+50%+50%`,
     '--autofit-larger=70%x70%',
     '--keepaspect=yes',
     `--title=${title}`,
     '--msg-level=ffmpeg/demuxer=info,demux=info,cplayer=info',
+    '--demuxer-lavf-o=allowed_extensions=ALL',
   ];
 
   // Only force custom HTTP headers if it's a direct raw stream or wixmp.
   // Passing these headers for iframes overrides yt-dlp and breaks it.
-  const isDirect = /wixmp\.com/i.test(urls[0] || '') ||
-                   /allanime\.day/i.test(urls[0] || '') ||
-                   /googlevideo\.com/i.test(urls[0] || '') ||
-                   /megaplay\.su/i.test(urls[0] || '');
+  let isDirect = playbackUrls.every((url) => isDirectMediaUrl(url));
                    
   args.push('--hls-bitrate=max'); // Force highest quality for all HLS streams
   
-  if (isDirect) {
-    args.push('--no-ytdl');
-    args.push(`--referrer=${referer}`);
-    args.push(`--user-agent=${GENERIC_UA}`);
-  } else {
+  if (!isDirect) {
     if (!(await commandExists('yt-dlp'))) {
       console.error('\n[Error] yt-dlp is required to play this stream but was not found.');
       console.error('Please install it using: winget install yt-dlp.yt-dlp');
       console.error('After installation, restart your terminal to update the PATH.');
       return;
     }
-    args.push('--ytdl-format=bestvideo[height<=?720]+bestaudio/best');
-    // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked.
-    // We must use the explicit 'referer' and 'user-agent' yt-dlp arguments instead to pass both!
-    const safeUa = GENERIC_UA.replace(/,/g, '');
-    args.push(`--ytdl-raw-options=referer=${referer},user-agent=${safeUa}`);
+
+    console.log('Resolving external player URL with yt-dlp...');
+    const resolvedUrls = [];
+    let firstResolved: ReturnType<typeof resolveWithYtdlp> = null;
+
+    for (const url of playbackUrls) {
+      if (isDirectMediaUrl(url)) {
+        resolvedUrls.push(url);
+        continue;
+      }
+
+      const resolved = resolveWithYtdlp(url, playbackReferer);
+      if (!resolved) {
+        resolvedUrls.length = 0;
+        break;
+      }
+
+      firstResolved ||= resolved;
+      resolvedUrls.push(resolved.url);
+    }
+
+    if (resolvedUrls.length === playbackUrls.length) {
+      playbackUrls = resolvedUrls;
+      playbackReferer = firstResolved?.referer || playbackReferer;
+      playbackUserAgent = firstResolved?.userAgent || playbackUserAgent;
+      isDirect = true;
+    } else {
+      playbackUrls = originalUrls;
+    }
   }
 
-  args.push(...urls);
+  if (isDirect) {
+    args.push('--no-ytdl');
+    args.push(`--referrer=${playbackReferer}`);
+    args.push(`--user-agent=${playbackUserAgent}`);
+  } else {
+    args.push('--ytdl-format=best[height<=?720]/best');
+    // Important: Pass referer and user-agent to yt-dlp so it doesn't get blocked.
+    // We must use the explicit 'referer' and 'user-agent' yt-dlp arguments instead to pass both!
+    const safeUa = playbackUserAgent.replace(/,/g, '');
+    args.push(`--ytdl-raw-options=referer=${playbackReferer},user-agent=${safeUa}`);
+  }
+
+  args.push(...playbackUrls);
   const child = spawn(playerCommand, args, {
     detached: true,
     stdio: ['ignore', 'ignore', 'pipe'],

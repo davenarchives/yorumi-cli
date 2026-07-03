@@ -2,6 +2,19 @@
 
 All notable changes to the Yorumi CLI project will be documented in this file.
 
+## [2.1.0] - 2026-07-03
+
+### Added
+- **Local Backend Search Fallback**: Search now tries the local Yorumi backend first, then falls back to direct AllAnime GraphQL results when the backend is unavailable.
+
+### Changed
+- **Improved Search Ranking**: Exact and near-exact title matches are prioritized above specials, movies, and recap entries so searches like `naruto` select the main series first.
+
+### Fixed
+- **No Anime Found on Offline Backend**: Fixed CLI searches returning "No anime found" when `localhost:3001` is not running.
+- **Non-HLS mpv Launches**: Fixed non-HLS iframe/player URLs by resolving them through `yt-dlp` before launching `mpv`, while direct CDN media URLs continue to bypass `yt-dlp`.
+- **AllAnime Stream Fallback**: Restored direct AllAnime stream resolution so episodes can still resolve without the Yorumi backend.
+
 ## [2.0.0] - 2026-06-15
 
 ### Added
@@ -29,6 +42,7 @@ All notable changes to the Yorumi CLI project will be documented in this file.
 - Added `--latest` flag to fetch the top recently updated anime directly from AllManga.
 - Added `--popular` flag to fetch trending anime from Animetsu and resolve them locally.
 
+[2.1.0]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.1.0
 [2.0.0]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.0.0
 [1.6.8]: https://github.com/davenarchives/yorumi-cli/releases/tag/v1.6.8
 [1.6.7]: https://github.com/davenarchives/yorumi-cli/releases/tag/v1.6.7

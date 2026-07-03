@@ -45,7 +45,7 @@
         <p class="eyebrow">Official Yorumi terminal app</p>
         <h1 id="hero-title">Watch anime straight from your terminal.</h1>
         <p class="hero-lede">
-          Search Yorumi, resolve episodes, open mpv, or save Windows-friendly MP4 files with one command.
+          Search Yorumi, fall back to direct AllAnime scraping, open mpv, or save Windows-friendly MP4 files with one command.
         </p>
         <div class="hero-actions">
           <a class="button primary" href="#install">Get started</a>
@@ -114,7 +114,7 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
       <div class="section-heading">
         <p class="eyebrow">Install</p>
         <h2 id="install-title">Install in one command.</h2>
-        <p>Use the official installer for your platform. Windows installs private Node.js, fzf, mpv, and ffmpeg when needed.</p>
+        <p>Use the official installer for your platform. Windows installs private Node.js, fzf, mpv, yt-dlp, and ffmpeg when needed.</p>
       </div>
 
       <div class="install-panel" data-tabs>
@@ -139,7 +139,7 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
       <div class="feature-grid">
         <article class="feature-card">
           <h3>Watch anime</h3>
-          <p>Open an episode in mpv using Yorumi's hosted stream resolver.</p>
+          <p>Open an episode in mpv using Yorumi search with direct AllAnime fallback stream resolution.</p>
           <pre><code><span class="cmd">yorumi-cli -e 1 "frieren"</span>
 <span class="cmd">yorumi-cli -r '1-5' "naruto"</span></code></pre>
         </article>
@@ -199,6 +199,10 @@ Downloading episode 3 to Downloads\Yorumi\Wistoria - E03.mp4
         <article>
           <h3>mpv does not open</h3>
           <p>Run <code>winget install --id shinchiro.mpv -e</code>, reopen the terminal, then run <code>mpv --version</code>.</p>
+        </article>
+        <article>
+          <h3>Fallback streams fail</h3>
+          <p>Run <code>winget install --id yt-dlp.yt-dlp -e</code>, reopen the terminal, then run <code>yt-dlp --version</code>.</p>
         </article>
         <article>
           <h3>Downloads fail</h3>

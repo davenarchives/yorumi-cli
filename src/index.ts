@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { PACKAGE_ROOT } from './constants.js';
 import { ask, chooseFromList, selectEpisode, parseEpisodeRange, normalizeAudio } from './utils.js';
 import { resolveEpisodeStreamUrl } from './scraper.js';
-import { searchAllAnime, getLatestAnime, getPopularAnime } from './allanime.js';
+import { searchAllAnime, getLatestAnime, getPopularAnime } from './backend-search.js';
 import { playInMediaPlayer, getStreamReferer } from './player.js';
 import { downloadEpisodes } from './downloader.js';
 import { updateYorumiCli, uninstallYorumiCli } from './system.js';
@@ -235,25 +235,34 @@ const main = async () => {
     );
 
   console.log(`Fetching episodes for ${anime.title}...`);
-  let episodePayload;
   
   if (!anime.session.startsWith('allanime:')) {
-    console.log(`Matching ${anime.title} on AllAnime...`);
-    const searchRes = await searchAllAnime(anime.title);
-    if (searchRes.length > 0) {
-      anime = searchRes[0];
-    } else {
-      throw new Error(`Anime not found on AllAnime: ${anime.title}`);
+    try {
+      const metaRes = await fetch(`http://localhost:3001/api/anime/metadata?id=${anime.id}`);
+      if (metaRes.ok) {
+        const meta: any = await metaRes.json();
+        if (meta.episodes && meta.episodes > 0) {
+          anime.episodes = meta.episodes;
+        }
+      } else {
+        console.error(`\n[ERROR] Failed to fetch metadata for ${anime.title}. Status: ${metaRes.status}`);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    } catch (e) {
+      console.error(`\n[ERROR] Network error fetching metadata for ${anime.title}:`, e);
+      await new Promise(r => setTimeout(r, 2000));
     }
   }
 
-  const showId = anime.session.replace('allanime:', '');
-  const maxEp = anime.episodes || 1;
+  let episodePayload;
+  
+  // If we STILL don't have anime.episodes, default to 500 instead of 1 so they aren't completely blocked
+  const maxEp = anime.episodes || 500;
   const episodes = [];
   for (let i = 1; i <= maxEp; i++) {
     episodes.push({
-      id: `allanime:${showId}-ep-${i}`,
-      session: `allanime:${showId}-ep-${i}`,
+      id: `yorumi:${anime.id}-ep-${i}`,
+      session: `yorumi:${anime.id}-ep-${i}`,
       episodeNumber: i
     });
   }

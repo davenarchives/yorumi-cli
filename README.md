@@ -6,7 +6,7 @@
   █   ▀███▀ ██ ██ ▀███▀ ██   ██ ██     ▀████ ██▄▄▄ ██
 ```
 
-Tiny terminal anime watcher using Yorumi's hosted API and `mpv` for playback.
+Tiny terminal anime watcher using Yorumi search, direct AllAnime fallback scraping, and `mpv` for playback.
 
 ## Installation
 
@@ -27,7 +27,7 @@ scoop bucket add yorumi https://github.com/davenarchives/yorumi-cli
 scoop install yorumi-cli
 ```
 
-On Windows, the PowerShell installer attempts to install `mpv` and `ffmpeg` with Winget when they are missing. The CLI uses `https://yorumi-sigma.vercel.app/api` by default.
+On Windows, the PowerShell installer attempts to install `mpv`, `yt-dlp`, and `ffmpeg` with Winget when they are missing. The CLI searches the local Yorumi backend when available, then falls back to direct AllAnime GraphQL scraping and stream resolution.
 
 ```powershell
 yorumi-cli -e 1 "Frieren"
@@ -59,13 +59,13 @@ yorumi-cli --update
 yorumi-cli --uninstall
 ```
 
-Download mode requires `ffmpeg`. On Windows, the CLI can install it with Winget when needed. Use `--yes` to auto-confirm ffmpeg installation, overwrite an existing output file, or skip the uninstall confirmation.
+Non-HLS fallback players require `yt-dlp`, and download mode requires `ffmpeg`. On Windows, the installer can install both with Winget when needed. Use `--yes` to auto-confirm ffmpeg installation, overwrite an existing output file, or skip the uninstall confirmation.
 Downloads are saved to `~/Downloads/Yorumi` by default. Override that with `--output` or `YORUMI_DOWNLOAD_DIR`.
 Downloads convert audio to AAC by default for better Windows player compatibility. Use `--copy-audio` to keep the source audio track untouched.
 
 ## Interactive Menu
 
-Yorumi CLI uses `fzf` or `rofi` for anime and episode selection. The Windows installer includes portable `fzf`; without `fzf` or `rofi`, the CLI exits with an installer hint instead of showing a numbered terminal menu.
+Yorumi CLI uses `fzf` or `rofi` for anime and episode selection when available. The Windows installer includes portable `fzf`; without `fzf` or `rofi`, the CLI falls back to a numbered terminal menu.
 
 ```powershell
 yorumi-cli

@@ -1,5 +1,6 @@
 import { StreamLink, AnimeSearchResult, Episode } from './types.js';
 import { fetchAllAnimeStreams } from './allanime.js';
+
 import https from 'node:https';
 import http from 'node:http';
 
@@ -55,9 +56,44 @@ export const resolveEpisodeStreamUrl = async (
   dub: boolean,
   selectStream: boolean = false
 ): Promise<{ stream: StreamLink; url: string }> => {
+  const epNum = episode.episodeNumber;
   const isAllAnime = anime.session.startsWith('allanime:');
   const cleanTitle = anime.title.replace(/\(Dub\)/i, '').trim();
-  const epNum = episode.episodeNumber;
+
+  if (!isAllAnime) {
+    const backendUrl = `http://localhost:3001/api/anime/stream?id=${anime.id}&episode=${epNum}&source=anineko`;
+
+    try {
+      const res = await fetch(backendUrl);
+      if (!res.ok) throw new Error('Backend failed to resolve stream');
+      const data: any = await res.json();
+      
+      if (!data || (!data.m3u8 && !data.url)) {
+          throw new Error('No stream found in backend response');
+      }
+      
+      let streamUrl = data.m3u8 || data.url;
+      const referer = data.referer || 'https://vivibebe.site/';
+      
+      // If it's an HLS stream, pass it through the backend proxy so PNG headers are stripped
+      if (/\.m3u8/i.test(streamUrl)) {
+          streamUrl = `http://localhost:3001/api/scraper/proxy?url=${encodeURIComponent(streamUrl)}&referer=${encodeURIComponent(referer)}&proxyMedia=1`;
+      }
+      
+      const streamObj: StreamLink = {
+          provider: data.source || 'anineko',
+          server: 'vivibebe',
+          url: streamUrl,
+          quality: 'Auto',
+          audio: 'sub',
+          isHls: /\.m3u8/i.test(streamUrl)
+      };
+      
+      return { stream: streamObj, url: streamUrl };
+    } catch (error: any) {
+      console.error('Failed to get stream from local backend:', error.message);
+    }
+  }
 
   const order = [];
   if (sub && !dub) order.push('sub');
@@ -65,32 +101,31 @@ export const resolveEpisodeStreamUrl = async (
   else order.push('sub', 'dub');
 
   const allValidStreams: StreamLink[] = [];
+  const showId = isAllAnime ? anime.session.replace('allanime:', '') : undefined;
 
   for (const audio of order) {
-      const showId = isAllAnime ? anime.session.replace('allanime:', '') : undefined;
-          const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
-          if (allAnimeStreams.length > 0) {
-              for (const stream of allAnimeStreams) {
-                  if (/googlevideo\.com|allanime\.day|wixmp\.com/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
-                      if (!selectStream) return { stream, url: stream.url };
-                      allValidStreams.push(stream);
-                  }
-              }
-          }
+    const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
+    for (const stream of allAnimeStreams) {
+      if (/googlevideo\.com|allanime\.day|wixmp\.com/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
+        if (!selectStream) return { stream, url: stream.url };
+        allValidStreams.push(stream);
+      }
+    }
   }
 
   if (allValidStreams.length > 0) {
-      if (selectStream) {
-          const { chooseFromList } = await import('./utils.js');
-          const selected = await chooseFromList(
-              'Stream Quality / Server',
-              allValidStreams,
-              (s) => `[${s.provider}] ${s.server || 'Server'} - ${s.quality} ${String(s.audio || '').toUpperCase()}`
-          );
-          return { stream: selected, url: selected.url };
-      }
-      return { stream: allValidStreams[0], url: allValidStreams[0].url };
+    if (selectStream) {
+      const { chooseFromList } = await import('./utils.js');
+      const selected = await chooseFromList(
+        'Stream Quality / Server',
+        allValidStreams,
+        (stream) => `[${stream.provider}] ${stream.server || 'Server'} - ${stream.quality} ${String(stream.audio || '').toUpperCase()}`
+      );
+      return { stream: selected, url: selected.url };
+    }
+
+    return { stream: allValidStreams[0], url: allValidStreams[0].url };
   }
 
-  throw new Error(`No playable stream found for episode ${episode.episodeNumber}`);
+  throw new Error(`No playable stream found for episode ${epNum}`);
 };
