@@ -184,21 +184,14 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
 
     rawLinks = rawLinks.filter((stream) => {
       const url = stream.url.toLowerCase();
-      // Keep known-good direct media hosts and formats
       if (url.includes('.m3u8')) return true;
       if (url.includes('.mp4')) return true;
       if (url.includes('googlevideo.com')) return true;
-      if (url.includes('allanime.day')) return true;
       if (url.includes('wixmp.com')) return true;
       if (url.includes('okcdn.ru')) return true;
       if (url.includes('megaplay.su')) return true;
-      // ok.ru/vk.com need yt-dlp but are often the only available source
-      if (url.includes('ok.ru') || url.includes('vk.com')) return true;
-      if (url.includes('streamwish')) return false;
-      if (url.includes('bysekoze')) return false;
-      if (url.includes('filemoon')) return false;
-      if (url.includes('streamlare')) return false;
-      if (url.includes('mp4upload')) return false;
+      // These embeds are supported natively by yt-dlp
+      if (url.includes('ok.ru') || url.includes('vk.com') || url.includes('mp4upload')) return true;
       return false;
     });
 
