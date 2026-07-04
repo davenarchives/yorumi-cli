@@ -299,6 +299,7 @@ const main = async () => {
   const qStr = firstStream?.quality || 'unknown';
   const displayQuality = qStr.toLowerCase() === 'auto' ? 'Auto' : (qStr.endsWith('p') ? qStr : `${qStr}p`);
   console.log(`Opening ${title} in ${options.player} (${displayQuality} ${normalizeAudio(firstStream?.audio).toUpperCase()})...`);
+  console.log(`Stream: ${streamUrls[0]}`);
   await playInMediaPlayer(streamUrls, options.player, title, options.windowSize, referer);
 };
 

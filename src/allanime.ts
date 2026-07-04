@@ -100,6 +100,7 @@ export async function searchAllAnime(query: string): Promise<AnimeSearchResult[]
           countryOrigin: 'ALL',
         },
       }),
+      signal: AbortSignal.timeout(5000),
     });
 
     const searchData: any = await searchRes.json();
@@ -143,6 +144,7 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
 
     const epRes = await fetch(`${API_URL}?${epParams.toString()}`, {
       headers: { 'User-Agent': USER_AGENT, Origin: REFERER },
+      signal: AbortSignal.timeout(5000),
     });
     const epData: any = await epRes.json();
     const directSources = collectSourceUrls(epData?.data?.episode?.sourceUrls || [], audio);
@@ -182,8 +184,15 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
 
     rawLinks = rawLinks.filter((stream) => {
       const url = stream.url.toLowerCase();
+      // Keep known-good direct media hosts and formats
       if (url.includes('.m3u8')) return true;
+      if (url.includes('.mp4')) return true;
       if (url.includes('googlevideo.com')) return true;
+      if (url.includes('allanime.day')) return true;
+      if (url.includes('wixmp.com')) return true;
+      if (url.includes('okcdn.ru')) return true;
+      if (url.includes('megaplay.su')) return true;
+      // ok.ru/vk.com need yt-dlp but are often the only available source
       if (url.includes('ok.ru') || url.includes('vk.com')) return true;
       if (url.includes('streamwish')) return false;
       if (url.includes('bysekoze')) return false;

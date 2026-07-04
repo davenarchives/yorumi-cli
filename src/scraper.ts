@@ -61,34 +61,42 @@ export const resolveEpisodeStreamUrl = async (
   const cleanTitle = anime.title.replace(/\(Dub\)/i, '').trim();
 
   if (!isAllAnime) {
-    const backendUrl = `http://localhost:3001/api/anime/stream?id=${anime.id}&episode=${epNum}&source=anineko`;
+    // nocache=1 ensures we bypass stale in-memory cache on the backend
+    const backendUrl = `http://localhost:3001/api/anime/stream?id=${anime.id}&episode=${epNum}&source=anineko&nocache=1`;
 
     try {
       const res = await fetch(backendUrl);
       if (!res.ok) throw new Error('Backend failed to resolve stream');
       const data: any = await res.json();
-      
+
       if (!data || (!data.m3u8 && !data.url)) {
-          throw new Error('No stream found in backend response');
+        throw new Error('No stream found in backend response');
       }
-      
-      let streamUrl = data.m3u8 || data.url;
+
+      // Reject player iframe/embed URLs — mpv can't play them directly
+      const rawUrl: string = data.m3u8 || data.url;
+      const path = rawUrl.replace(/^https?:\/\/[^/]+/, '');
+      if (/player\.(videasy|vidsrc|2embed)/.test(rawUrl) || /^\/anime\/\d+\/\d+/.test(path)) {
+        throw new Error(`Backend returned an embed URL (${data.source}), not a direct stream`);
+      }
+
+      let streamUrl = rawUrl;
       const referer = data.referer || 'https://vivibebe.site/';
-      
+
       // If it's an HLS stream, pass it through the backend proxy so PNG headers are stripped
       if (/\.m3u8/i.test(streamUrl)) {
-          streamUrl = `http://localhost:3001/api/scraper/proxy?url=${encodeURIComponent(streamUrl)}&referer=${encodeURIComponent(referer)}&proxyMedia=1`;
+        streamUrl = `http://localhost:3001/api/scraper/proxy?url=${encodeURIComponent(streamUrl)}&referer=${encodeURIComponent(referer)}&proxyMedia=1`;
       }
-      
+
       const streamObj: StreamLink = {
-          provider: data.source || 'anineko',
-          server: 'vivibebe',
-          url: streamUrl,
-          quality: 'Auto',
-          audio: 'sub',
-          isHls: /\.m3u8/i.test(streamUrl)
+        provider: data.source || 'anineko',
+        server: 'vivibebe',
+        url: streamUrl,
+        quality: 'Auto',
+        audio: 'sub',
+        isHls: /\.m3u8/i.test(streamUrl)
       };
-      
+
       return { stream: streamObj, url: streamUrl };
     } catch (error: any) {
       console.error('Failed to get stream from local backend:', error.message);

@@ -181,32 +181,30 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
   args.push(...playbackUrls);
   const child = spawn(playerCommand, args, {
     detached: true,
-    stdio: ['ignore', 'ignore', 'pipe'],
+    // All stdio must be 'ignore' so mpv has zero I/O ties to this process.
+    // Using 'pipe' for stderr causes mpv to crash on Windows when the parent
+    // calls process.exit() — the broken pipe kills the detached player.
+    stdio: 'ignore',
     windowsHide: false,
   });
 
-  let stderrOutput = '';
-  child.stderr?.on('data', (chunk) => {
-    stderrOutput += chunk.toString();
-  });
+  // Unref immediately so Node does not keep the event loop alive waiting for mpv.
+  // mpv is a detached child — it must outlive the CLI process.
+  child.unref();
 
+  // Brief window to catch spawn failures (e.g. binary not found, bad permissions).
+  // The 'exit' and 'error' events still fire with stdio: 'ignore'.
   await new Promise<void>((resolve, reject) => {
-    // Increase timeout to 5 seconds to catch stream resolution failures from yt-dlp
-    const timer = setTimeout(resolve, 5000);
-    child.once('error', (error) => {
+    const timer = setTimeout(resolve, 800);
+    child.once('error', (error: Error) => {
       clearTimeout(timer);
       reject(error);
     });
-    child.once('exit', (code) => {
-      clearTimeout(timer);
-      if (code && code !== 0) {
-        const errStr = stderrOutput.trim() ? `\nMPV Error Output:\n${stderrOutput.trim()}` : '';
-        reject(new Error(`${playerCommand} exited with code ${code}.${errStr}`));
-        return;
+    child.once('exit', (code: number | null) => {
+      if (code !== null && code !== 0) {
+        clearTimeout(timer);
+        reject(new Error(`${playerCommand} exited with code ${code}. Re-run with --print-url to debug the stream URL.`));
       }
-      resolve();
     });
   });
-
-  child.unref();
 };

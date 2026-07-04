@@ -1,6 +1,6 @@
 import { AnimeSearchResult } from './types.js';
 
-const LOCAL_API_BASE = String(process.env.YORUMI_API_BASE || 'http://localhost:3001/api').replace(/\/+$/, '');
+const LOCAL_API_BASE = process.env.YORUMI_API_BASE ? String(process.env.YORUMI_API_BASE).replace(/\/+$/, '') : null;
 const ALLANIME_API_URL = 'https://api.allanime.day/api';
 const ALLANIME_REFERER = 'https://allmanga.to';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0';
@@ -42,6 +42,7 @@ const rankSearchResults = (query: string, results: AnimeSearchResult[]) =>
   [...results].sort((a, b) => scoreSearchResult(query, b) - scoreSearchResult(query, a));
 
 async function fetchBackendResults(path: string): Promise<AnimeSearchResult[]> {
+  if (!LOCAL_API_BASE) return [];
   const res = await fetch(`${LOCAL_API_BASE}${path}`, { signal: AbortSignal.timeout(3500) });
   if (!res.ok) return [];
 
@@ -79,6 +80,7 @@ async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnime
         countryOrigin: 'ALL',
       },
     }),
+    signal: AbortSignal.timeout(5000),
   });
 
   if (!res.ok) return [];
