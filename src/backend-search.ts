@@ -54,52 +54,63 @@ async function fetchBackendResults(path: string): Promise<AnimeSearchResult[]> {
 }
 
 async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnimeSort; limit?: number }): Promise<AnimeSearchResult[]> {
-  const search: Record<string, unknown> = { allowAdult: false, allowUnknown: false };
-  if (options.query) {
-    search.query = normalizeTitle(options.query);
-  } else if (options.sortBy) {
-    search.sortBy = options.sortBy;
-    search.sortDirection = 'DSC';
-  }
+  try {
+    const search: Record<string, unknown> = { allowAdult: false, allowUnknown: false };
+    if (options.query) {
+      search.query = normalizeTitle(options.query);
+    } else if (options.sortBy) {
+      search.sortBy = options.sortBy;
+      search.sortDirection = 'DSC';
+    }
 
-  const query = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name availableEpisodes}}}`;
-  const res = await fetch(ALLANIME_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': USER_AGENT,
-      Origin: ALLANIME_REFERER,
-    },
-    body: JSON.stringify({
-      query,
-      variables: {
-        search,
-        limit: options.limit || 40,
-        page: 1,
-        translationType: 'sub',
-        countryOrigin: 'ALL',
+    const query = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name availableEpisodes}}}`;
+    const res = await fetch(ALLANIME_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': USER_AGENT,
+        Origin: ALLANIME_REFERER,
       },
-    }),
-    signal: AbortSignal.timeout(5000),
-  });
+      body: JSON.stringify({
+        query,
+        variables: {
+          search,
+          limit: options.limit || 40,
+          page: 1,
+          translationType: 'sub',
+          countryOrigin: 'ALL',
+        },
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
 
-  if (!res.ok) return [];
+    if (!res.ok) {
+      console.error(`Fetch failed with status: ${res.status}`);
+      return [];
+    }
 
-  const data: any = await res.json();
-  const edges = Array.isArray(data?.data?.shows?.edges) ? data.data.shows.edges : [];
-  const results = edges.map((edge: any) => {
-    const available = edge.availableEpisodes || {};
-    const episodes = Math.max(available.sub || 0, available.dub || 0, available.raw || 0, 1);
+    const data: any = await res.json();
+    if (data.errors) {
+      console.error('GraphQL errors:', data.errors);
+    }
+    const edges = Array.isArray(data?.data?.shows?.edges) ? data.data.shows.edges : [];
+    const results = edges.map((edge: any) => {
+      const available = edge.availableEpisodes || {};
+      const episodes = Math.max(available.sub || 0, available.dub || 0, available.raw || 0, 1);
 
-    return {
-      id: `allanime-${edge._id}`,
-      title: edge.name,
-      session: `allanime:${edge._id}`,
-      episodes,
-    };
-  }).filter((item: AnimeSearchResult) => item.title);
+      return {
+        id: `allanime-${edge._id}`,
+        title: edge.name,
+        session: `allanime:${edge._id}`,
+        episodes,
+      };
+    }).filter((item: AnimeSearchResult) => item.title);
 
-  return options.query ? rankSearchResults(options.query, results) : results;
+    return options.query ? rankSearchResults(options.query, results) : results;
+  } catch (error) {
+    console.error('fetchAllAnimeResults error:', error);
+    return [];
+  }
 }
 
 export async function getLatestAnime(): Promise<AnimeSearchResult[]> {

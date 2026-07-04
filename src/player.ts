@@ -162,7 +162,8 @@ export const playInMediaPlayer = async (urls: string[], player: string, title: s
       playbackUserAgent = firstResolved?.userAgent || playbackUserAgent;
       isDirect = true;
     } else {
-      playbackUrls = originalUrls;
+      console.error('\n[Error] yt-dlp failed to resolve the stream. The video might be blocked or unavailable.');
+      return;
     }
   }
 
