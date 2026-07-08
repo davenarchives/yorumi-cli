@@ -6,6 +6,18 @@ const REFERER = 'https://allmanga.to';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0';
 const EPISODE_HASH = 'd405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec';
 
+const BUILD_ID = '9';
+const EPOCH = 4128;
+const VERSION = 1;
+const TS_BUCKET_MS = 300_000;
+
+const KEY_A = Buffer.from('b1a9a4d051988f1b1b12dbb747439d9bd64b09ea17835600a7eaa4de87c1ad87', 'hex');
+const KEY_B = Buffer.from('k7DLdv5SGiuEyGUtcncl5wQOR7r4aenLfDV3AOBKlAU=', 'base64');
+const CRYPTO_KEY = Buffer.alloc(32);
+for (let i = 0; i < 32; i++) {
+  CRYPTO_KEY[i] = KEY_A[i] ^ KEY_B[i];
+}
+
 const HEX_MAP: Record<string, string> = {
   '79': 'A', '7a': 'B', '7b': 'C', '7c': 'D', '7d': 'E', '7e': 'F', '7f': 'G', '70': 'H', '71': 'I', '72': 'J',
   '73': 'K', '74': 'L', '75': 'M', '76': 'N', '77': 'O', '68': 'P', '69': 'Q', '6a': 'R', '6b': 'S', '6c': 'T',
@@ -68,9 +80,57 @@ const collectSourceUrls = (sourceUrls: any[], audio: string) => {
   return { clockUrls, iframeUrls };
 };
 
+const generateAaReq = (queryHash: string) => {
+  const ts = Math.floor(Date.now() / TS_BUCKET_MS) * TS_BUCKET_MS;
+  const payload = {
+    v: VERSION,
+    ts,
+    epoch: EPOCH,
+    buildId: BUILD_ID,
+    qh: queryHash,
+  };
+
+  const seed = `${EPOCH}:${BUILD_ID}:${queryHash}:${ts}`;
+  const nonce = crypto.createHash('sha256').update(seed).digest().subarray(0, 12);
+
+  const plaintext = Buffer.from(JSON.stringify(payload));
+  const cipher = crypto.createCipheriv('aes-256-gcm', CRYPTO_KEY, nonce);
+
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  const envelope = Buffer.concat([
+    Buffer.from([VERSION]),
+    nonce,
+    ciphertext,
+    authTag,
+  ]);
+
+  return envelope.toString('base64');
+};
+
 const decryptTobeparsed = (blob: string, audio: string) => {
   try {
     const raw = Buffer.from(blob, 'base64');
+
+    if (raw.length > 0 && raw[0] === VERSION) {
+      const nonce = raw.subarray(1, 13);
+      const ciphertext = raw.subarray(13, raw.length - 16);
+      const authTag = raw.subarray(raw.length - 16);
+      
+      const decipher = crypto.createDecipheriv('aes-256-gcm', CRYPTO_KEY, nonce);
+      decipher.setAuthTag(authTag);
+      
+      const plain = decipher.update(ciphertext, undefined, 'utf8') + decipher.final('utf8');
+      try {
+        const parsed = JSON.parse(plain);
+        const sourceUrls = Array.isArray(parsed) ? parsed : parsed?.episode?.sourceUrls || [];
+        return collectSourceUrls(sourceUrls, audio);
+      } catch {
+        return { clockUrls: [] as string[], iframeUrls: [] as StreamLink[] };
+      }
+    }
+
     const key = crypto.createHash('sha256').update('Xot36i3lK3:v1').digest();
     const iv = Buffer.concat([raw.subarray(1, 13), Buffer.from([0, 0, 0, 2])]);
     const ciphertext = raw.subarray(13, raw.length - 16);
@@ -139,11 +199,12 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
       }),
       extensions: JSON.stringify({
         persistedQuery: { version: 1, sha256Hash: EPISODE_HASH },
+        aaReq: generateAaReq(EPISODE_HASH),
       }),
     });
 
     const epRes = await fetch(`${API_URL}?${epParams.toString()}`, {
-      headers: { 'User-Agent': USER_AGENT, Origin: REFERER },
+      headers: { 'User-Agent': USER_AGENT, Origin: REFERER, 'x-build-id': BUILD_ID },
       signal: AbortSignal.timeout(5000),
     });
     const epData: any = await epRes.json();

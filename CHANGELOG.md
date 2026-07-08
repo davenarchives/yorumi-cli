@@ -2,6 +2,11 @@
 
 All notable changes to the Yorumi CLI project will be documented in this file.
 
+## [2.1.4] - 2026-07-08
+
+### Fixed
+- **AllAnime Scraper**: Updated AES-GCM decryption and request signature logic to handle AllAnime's new `extensions.aaReq` requirements and Cloudflare patches.
+
 ## [2.1.0] - 2026-07-03
 
 ### Added
@@ -42,6 +47,7 @@ All notable changes to the Yorumi CLI project will be documented in this file.
 - Added `--latest` flag to fetch the top recently updated anime directly from AllManga.
 - Added `--popular` flag to fetch trending anime from Animetsu and resolve them locally.
 
+[2.1.4]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.1.4
 [2.1.0]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.1.0
 [2.0.0]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.0.0
 [1.6.8]: https://github.com/davenarchives/yorumi-cli/releases/tag/v1.6.8
