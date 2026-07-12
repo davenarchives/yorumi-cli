@@ -1,6 +1,6 @@
 {
   "name": "yorumi-cli",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "private": true,
   "type": "module",
   "description": "Command-line AllManga watcher using Yorumi scraper logic",
@@ -14,6 +14,7 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "playwright": "^1.61.1",
     "tsx": "^4.21.0"
   },
   "devDependencies": {

@@ -2,6 +2,12 @@
 
 All notable changes to the Yorumi CLI project will be documented in this file.
 
+## [2.1.5] - 2026-07-12
+
+### Fixed
+- **AllAnime Scraper**: Updated AES-GCM token generator to dynamically scrape keys from SvelteKit chunks to avoid static key rot.
+- **Payload Decryption**: Removed erroneous AES-GCM decryption for `tobeparsed` responses; AllAnime continues to return AES-256-CTR encoded responses with an appended garbage tag that is now safely discarded.
+
 ## [2.1.4] - 2026-07-08
 
 ### Fixed
@@ -47,6 +53,7 @@ All notable changes to the Yorumi CLI project will be documented in this file.
 - Added `--latest` flag to fetch the top recently updated anime directly from AllManga.
 - Added `--popular` flag to fetch trending anime from Animetsu and resolve them locally.
 
+[2.1.5]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.1.5
 [2.1.4]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.1.4
 [2.1.0]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.1.0
 [2.0.0]: https://github.com/davenarchives/yorumi-cli/releases/tag/v2.0.0
