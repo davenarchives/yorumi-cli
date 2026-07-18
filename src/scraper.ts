@@ -114,7 +114,7 @@ export const resolveEpisodeStreamUrl = async (
   for (const audio of order) {
     const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
     for (const stream of allAnimeStreams) {
-      if (/googlevideo\.com|allanime\.day|wixmp\.com/i.test(stream.url) || await isStreamValid(stream.url, 'https://allmanga.to')) {
+      if (/googlevideo\.com|allanime\.day|wixmp\.com/i.test(stream.url) || await isStreamValid(stream.url, 'https://youtu-chan.com')) {
         if (!selectStream) return { stream, url: stream.url };
         allValidStreams.push(stream);
       }

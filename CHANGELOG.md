@@ -2,9 +2,13 @@
 
 All notable changes to the Yorumi CLI project will be documented in this file.
 
-## [2.1.5] - 2026-07-12
+## [2.1.7] - 2026-07-17
 
 ### Fixed
+- **AllAnime Scraper**: Updated AES-GCM and AES-256-CTR encryption keys for `aaReq` generation and `tobeparsed` decryption to restore streaming source retrieval after API changes.
+- **Backend Sync**: Synchronized the main Yorumi backend scraper to utilize the CLI's `aaReq` handshake mechanism.
+
+## [2.1.5] - 2026-07-12
 - **AllAnime Scraper**: Updated AES-GCM token generator to dynamically scrape keys from SvelteKit chunks to avoid static key rot.
 - **Payload Decryption**: Removed erroneous AES-GCM decryption for `tobeparsed` responses; AllAnime continues to return AES-256-CTR encoded responses with an appended garbage tag that is now safely discarded.
 
