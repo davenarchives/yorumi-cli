@@ -1,8 +1,9 @@
 import { AnimeSearchResult } from './types.js';
+import { searchAllAnime as searchDirectAllAnime } from './allanime.js';
 
 const LOCAL_API_BASE = process.env.YORUMI_API_BASE ? String(process.env.YORUMI_API_BASE).replace(/\/+$/, '') : null;
-const ALLANIME_API_URL = 'https://api.allanime.day/api';
-const ALLANIME_REFERER = 'https://allmanga.to';
+const ALLANIME_API_URL = 'https://api.mkissa.net/api';
+const ALLANIME_REFERER = 'https://mkissa.to';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0';
 
 type AllAnimeSort = 'Latest_Update' | 'Score';
@@ -15,7 +16,7 @@ const toAnimeResult = (anime: any): AnimeSearchResult => ({
   episodes: anime.episodes
 });
 
-const normalizeTitle = (value: string) =>
+const normalizeTitle = (value: unknown) =>
   String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
@@ -23,16 +24,27 @@ const normalizeTitle = (value: string) =>
 
 const scoreSearchResult = (query: string, result: AnimeSearchResult) => {
   const q = normalizeTitle(query);
-  const title = normalizeTitle(result.title);
+  const titles = [
+    result.title,
+    result.name,
+    result.englishName,
+  ].map(normalizeTitle).filter(Boolean);
   let score = 0;
+  let exactMatch = false;
 
-  if (title === q) score += 100_000;
-  if (title.startsWith(`${q} `)) score += 20_000;
-  if (title.includes(q)) score += 5_000;
+  for (const title of titles) {
+    if (title === q) {
+      exactMatch = true;
+      score = Math.max(score, 100_000);
+    }
+    else if (title.startsWith(`${q} `)) score = Math.max(score, 20_000);
+    else if (title.includes(q)) score = Math.max(score, 5_000);
+  }
 
   const isSpecial = /\b(movie|special|recap|ova|ona)\b/i.test(result.title);
   const asksSpecial = /\b(movie|special|recap|ova|ona)\b/i.test(query);
-  if (isSpecial && !asksSpecial) score -= 10_000;
+  if (isSpecial && !asksSpecial) score -= 200_000;
+  if (!asksSpecial && !exactMatch && Number(result.episodes || 0) <= 1) score -= 200_000;
 
   score += Math.min(Number(result.episodes || 0), 1_000);
   return score;
@@ -63,7 +75,7 @@ async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnime
       search.sortDirection = 'DSC';
     }
 
-    const query = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name availableEpisodes}}}`;
+    const query = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name englishName type season availableEpisodes episodeCount}}}`;
     const res = await fetch(ALLANIME_API_URL, {
       method: 'POST',
       headers: {
@@ -81,7 +93,7 @@ async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnime
           countryOrigin: 'ALL',
         },
       }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(25_000),
     });
 
     if (!res.ok) {
@@ -100,9 +112,12 @@ async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnime
 
       return {
         id: `allanime-${edge._id}`,
-        title: edge.name,
+        title: edge.englishName || edge.name,
+        name: edge.name,
+        englishName: edge.englishName,
         session: `allanime:${edge._id}`,
         episodes,
+        year: edge.season?.year,
       };
     }).filter((item: AnimeSearchResult) => item.title);
 
@@ -143,5 +158,9 @@ export async function searchAllAnime(query: string): Promise<AnimeSearchResult[]
     // Fall back to the direct provider below.
   }
 
-  return fetchAllAnimeResults({ query }).catch(() => []);
+  if (!LOCAL_API_BASE) return searchDirectAllAnime(query).catch(() => []);
+
+    const directResults = await fetchAllAnimeResults({ query }).catch(() => []);
+    if (directResults.length > 0) return directResults;
+    return searchDirectAllAnime(query).catch(() => []);
 }

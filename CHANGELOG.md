@@ -2,6 +2,13 @@
 
 All notable changes to the Yorumi CLI project will be documented in this file.
 
+## [2.1.8] - 2026-07-26
+
+### Fixed & Changed
+- **Dynamic AES-256-GCM Key Scraping**: Replaced static AllManga keys with dynamic runtime scraping of `epoch`, `partB`, and SvelteKit JavaScript chunks from `mkissa.to` to compute the AES-256-GCM key (`aaKey`), preventing static key expiration.
+- **ani-cli Alignment & Endpoints**: Updated timestamp-bucketed `aaReq` signature generation (seconds-based timestamp, `epoch:queryHash:ts` seed) and switched API requests to `mkissa.net/api` with `mkissa.to` Origin and Referer headers.
+- **AllAnime Payload Decryption**: Added multi-pass key candidates (`SimtVuagFbGR2K7P`, `Xot36i3lK3:v1`, `allanime`) and resilient slicing strategies to `decryptTobeparsed()` in both `yorumi-cli` and the main Yorumi backend scraper to prevent "No valid sources" failures across API payload rotations.
+
 ## [2.1.7] - 2026-07-17
 
 ### Fixed

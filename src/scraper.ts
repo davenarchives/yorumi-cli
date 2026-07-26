@@ -9,7 +9,7 @@ function isStreamValid(url: string, referer: string): Promise<boolean> {
     if (/streamlare\.com/i.test(url)) return resolve(false);
 
     // For iframe fallbacks (like mp4upload), fetch the HTML and check if the video was deleted
-    if (!/\.(m3u8|mkv)(\?|$)/i.test(url) && !/googlevideo\.com|allanime\.day|wixmp\.com/i.test(url)) {
+    if (!/\.(m3u8|mkv|mp4)(\?|$)/i.test(url) && !/googlevideo\.com|allanime\.day|wixmp\.com|fast4speed\.rsvp/i.test(url)) {
       const ac = new AbortController();
       const timeout = setTimeout(() => ac.abort(), 4000);
       fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': referer }, signal: ac.signal })
@@ -114,8 +114,9 @@ export const resolveEpisodeStreamUrl = async (
   for (const audio of order) {
     const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
     for (const stream of allAnimeStreams) {
-      if (/googlevideo\.com|allanime\.day|wixmp\.com/i.test(stream.url) || await isStreamValid(stream.url, 'https://youtu-chan.com')) {
-        if (!selectStream) return { stream, url: stream.url };
+      const streamUrl = stream.directUrl || stream.url;
+      if (/googlevideo\.com|allanime\.day|wixmp\.com|fast4speed\.rsvp/i.test(streamUrl) || await isStreamValid(streamUrl, 'https://allmanga.to')) {
+        if (!selectStream) return { stream, url: streamUrl };
         allValidStreams.push(stream);
       }
     }
@@ -129,10 +130,10 @@ export const resolveEpisodeStreamUrl = async (
         allValidStreams,
         (stream) => `[${stream.provider}] ${stream.server || 'Server'} - ${stream.quality} ${String(stream.audio || '').toUpperCase()}`
       );
-      return { stream: selected, url: selected.url };
+      return { stream: selected, url: selected.directUrl || selected.url };
     }
 
-    return { stream: allValidStreams[0], url: allValidStreams[0].url };
+    return { stream: allValidStreams[0], url: allValidStreams[0].directUrl || allValidStreams[0].url };
   }
 
   throw new Error(`No playable stream found for episode ${epNum}`);

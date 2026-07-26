@@ -1,21 +1,29 @@
 import crypto from 'node:crypto';
 import { AnimeSearchResult, StreamLink } from './types.js';
 
-const API_URL = 'https://api.allanime.day/api';
-const REFERER = 'https://youtu-chan.com';
+const API_URL = 'https://api.mkissa.net/api';
+const REFERER = 'https://mkissa.to';
+const STREAM_REFERER = 'https://allmanga.to';
 const ALLANIME_BASE = 'allanime.day';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0';
-const EPISODE_HASH = 'd405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec';
-
-// AES-256-GCM key for aaReq authentication (from ani-cli PR #1779)
-const AA_KEY = Buffer.from('cf4777b5778aeadc9449e12769ea545d00c43cd8ff65d482364586cde204f359', 'hex');
-const AA_EPOCH = 4130;
-const AA_BUILD_ID = '12';
-const AA_VERSION = 1;
+const STATIC_QUERY_HASH = 'f4662f4b7510b26795dd53ef824a0bf1740fbbc5d1273fab18222ac831bca8d0';
 const TS_BUCKET_MS = 300_000;
 
-// AES-256-CTR key for decrypting tobeparsed responses
-const ALLANIME_KEY = Buffer.from('cf4777b5778aeadc9449e12769ea545d00c43cd8ff65d482364586cde204f359', 'hex');
+type TranslationType = 'sub' | 'dub';
+type DynamicKeys = { epoch: number; aaKey: Buffer; queryHash: string; fetchTime: number };
+type AllAnimeSource = { sourceUrl?: string; sourceName?: string; priority?: number };
+type EpisodeSourcePayload = { data?: { episode?: { sourceUrls?: AllAnimeSource[] }; tobeparsed?: string } };
+type AllAnimeShow = {
+  _id?: string;
+  name?: string;
+  englishName?: string | null;
+  type?: string | null;
+  season?: { year?: number } | null;
+  availableEpisodes?: Record<string, number>;
+  episodeCount?: number | string | null;
+};
+
+let dynamicKeys: DynamicKeys | null = null;
 
 const HEX_MAP: Record<string, string> = {
   '79': 'A', '7a': 'B', '7b': 'C', '7c': 'D', '7d': 'E', '7e': 'F', '7f': 'G', '70': 'H', '71': 'I', '72': 'J',
@@ -29,16 +37,80 @@ const HEX_MAP: Record<string, string> = {
   '1e': '&', '10': '(', '11': ')', '12': '*', '13': '+', '14': ',', '03': ';', '05': '=', '1d': '%',
 };
 
+const normalizeTitle = (value: unknown) =>
+  String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
 const cleanSearchQuery = (query: string) =>
   query.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
 
-const toClockUrl = (decoded: string) => {
-  const clockPath = decoded.replace('/clock', '/clock.json');
-  if (clockPath.startsWith('//')) return `https:${clockPath}`;
-  if (clockPath.startsWith('/')) return `https://${ALLANIME_BASE}${clockPath}`;
-  if (/^https?:\/\//i.test(clockPath)) return clockPath;
-  return `https://${ALLANIME_BASE}/${clockPath}`;
-};
+async function fetchText(url: string, timeoutMs = 10_000) {
+  const res = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT, Referer: REFERER },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`Request failed ${res.status}: ${url}`);
+  return res.text();
+}
+
+async function fetchDynamicKeys(): Promise<DynamicKeys> {
+  if (dynamicKeys && Date.now() - dynamicKeys.fetchTime < 5 * 60 * 1000) return dynamicKeys;
+
+  try {
+    const home = await fetchText('https://mkissa.to/');
+    const epochMatch = home.match(/"epoch":(\d+)/);
+    const partBMatch = home.match(/"partB":"([^"]+)"/);
+    const appUrlMatch = home.match(/https:\/\/cdn\.mkissa\.net\/all\/mk\/_app\/immutable\/entry\/app\.[A-Za-z0-9_.-]+\.js/);
+
+    if (epochMatch && partBMatch && appUrlMatch) {
+      const epoch = Number(epochMatch[1]);
+      const partBHex = Buffer.from(partBMatch[1], 'base64').toString('hex');
+      const app = await fetchText(appUrlMatch[0]);
+      const chunkUrls = [...app.matchAll(/"(\.\.\/chunks\/[A-Za-z0-9_.-]+\.js)"/g)]
+        .map((match) => match[1].replace('../', 'https://cdn.mkissa.net/all/mk/_app/immutable/'))
+        .slice(0, 5);
+
+      for (const chunkUrl of chunkUrls) {
+        const chunk = await fetchText(chunkUrl, 5_000);
+        const maskMatch = chunk.match(/[0-9a-f]{64}/);
+        if (!maskMatch) continue;
+
+        let keyHex = '';
+        for (let i = 0; i < 64; i += 2) {
+          const mask = parseInt(maskMatch[0].slice(i, i + 2), 16);
+          const part = parseInt(partBHex.slice(i, i + 2), 16);
+          keyHex += (mask ^ part).toString(16).padStart(2, '0');
+        }
+
+        dynamicKeys = {
+          epoch,
+          aaKey: Buffer.from(keyHex, 'hex'),
+          queryHash: STATIC_QUERY_HASH,
+          fetchTime: Date.now(),
+        };
+        return dynamicKeys;
+      }
+    }
+  } catch {
+    // Fall back to the last known public values below.
+  }
+
+  return {
+    epoch: 6886,
+    aaKey: Buffer.from('a55ce35d83c1417fdfec0192c2b847eeae58d5bbb331a179d293aac40c035795', 'hex'),
+    queryHash: STATIC_QUERY_HASH,
+    fetchTime: Date.now(),
+  };
+}
+
+async function generateAaReq() {
+  const keys = await fetchDynamicKeys();
+  const ts = Math.floor(Date.now() / TS_BUCKET_MS) * TS_BUCKET_MS;
+  const payload = { v: 1, ts, epoch: keys.epoch, qh: keys.queryHash };
+  const nonce = crypto.createHash('sha256').update(`${keys.epoch}:${keys.queryHash}:${ts}`).digest().subarray(0, 12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', keys.aaKey, nonce);
+  const ciphertext = Buffer.concat([cipher.update(Buffer.from(JSON.stringify(payload))), cipher.final()]);
+  return Buffer.concat([Buffer.from([1]), nonce, ciphertext, cipher.getAuthTag()]).toString('base64');
+}
 
 const decodeClockSource = (sourceUrl: string) => {
   const clean = sourceUrl.startsWith('--') ? sourceUrl.slice(2) : sourceUrl;
@@ -52,126 +124,284 @@ const decodeClockSource = (sourceUrl: string) => {
   return decoded.replace(/\\u002F/gi, '/').replace(/\\\|/g, '');
 };
 
-const collectSourceUrls = (sourceUrls: any[], audio: string) => {
-  const clockUrls: string[] = [];
-  const iframeUrls: StreamLink[] = [];
+const toClockUrl = (decoded: string) => {
+  const clockPath = decoded.replace('/clock', '/clock.json');
+  if (clockPath.startsWith('//')) return `https:${clockPath}`;
+  if (clockPath.startsWith('/')) return `https://${ALLANIME_BASE}${clockPath}`;
+  if (/^https?:\/\//i.test(clockPath)) return clockPath;
+  return `https://${ALLANIME_BASE}/${clockPath}`;
+};
 
-  for (const item of sourceUrls) {
-    const sourceUrl = item?.sourceUrl;
-    if (typeof sourceUrl !== 'string') continue;
+const parseSourcePayload = (value: unknown): AllAnimeSource[] => {
+  if (Array.isArray(value)) return value as AllAnimeSource[];
+  const parsed = value as { episode?: { sourceUrls?: AllAnimeSource[] }; sourceUrls?: AllAnimeSource[] } | null;
+  if (Array.isArray(parsed?.episode?.sourceUrls)) return parsed.episode.sourceUrls;
+  if (Array.isArray(parsed?.sourceUrls)) return parsed.sourceUrls;
+  return [];
+};
 
-    if (sourceUrl.startsWith('--')) {
-      clockUrls.push(toClockUrl(decodeClockSource(sourceUrl)));
-      continue;
-    }
-
-    if (/^https?:\/\//i.test(sourceUrl)) {
-      iframeUrls.push({
-        server: String(item.sourceName || 'Unknown'),
-        url: sourceUrl,
-        quality: 'auto',
-        audio,
-        provider: 'allmanga',
-      });
-    }
+const extractSourcesFromText = (plain: string): AllAnimeSource[] => {
+  const sources: AllAnimeSource[] = [];
+  for (const chunk of plain.split(/[{}]/)) {
+    const urlMatch = chunk.match(/"sourceUrl"\s*:\s*"([^"]+)"/);
+    if (!urlMatch) continue;
+    const nameMatch = chunk.match(/"sourceName"\s*:\s*"([^"]+)"/);
+    const priorityMatch = chunk.match(/"priority"\s*:\s*([0-9.]+)/);
+    sources.push({
+      sourceUrl: urlMatch[1],
+      sourceName: nameMatch?.[1] || '',
+      priority: priorityMatch ? Number(priorityMatch[1]) : 0,
+    });
   }
-
-  return { clockUrls, iframeUrls };
+  return sources;
 };
 
-/**
- * Generate the aaReq authentication token using AES-256-GCM.
- * Matches the get_aa_req() function from ani-cli PR #1779.
- */
-const generateAaReq = (): string => {
-  const ts = Math.floor(Date.now() / TS_BUCKET_MS) * TS_BUCKET_MS;
-  const payload = {
-    v: AA_VERSION,
-    ts,
-    epoch: AA_EPOCH,
-    buildId: AA_BUILD_ID,
-    qh: EPISODE_HASH,
-  };
-
-  const seed = `${AA_EPOCH}:${AA_BUILD_ID}:${EPISODE_HASH}:${ts}`;
-  const nonce = crypto.createHash('sha256').update(seed).digest().subarray(0, 12);
-
-  const plaintext = Buffer.from(JSON.stringify(payload));
-  const cipher = crypto.createCipheriv('aes-256-gcm', AA_KEY, nonce);
-
-  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-
-  const envelope = Buffer.concat([
-    Buffer.from([AA_VERSION]),
-    nonce,
-    ciphertext,
-    authTag,
-  ]);
-
-  return envelope.toString('base64');
-};
-
-/**
- * Decrypt the "tobeparsed" response blob.
- * AllAnime encrypts the response with AES-256-CTR followed by an unused 16-byte tag.
- */
-const decryptTobeparsed = (blob: string, audio: string) => {
+const decryptTobeparsed = async (blob: string): Promise<AllAnimeSource[]> => {
   try {
+    const keys = await fetchDynamicKeys();
     const raw = Buffer.from(blob, 'base64');
-    const nonce = raw.subarray(1, 13);
-    const ciphertext = raw.subarray(13, raw.length - 16);
+    if (raw.length <= 29) return [];
 
-    const iv = Buffer.concat([nonce, Buffer.from([0, 0, 0, 2])]);
-    const decipher = crypto.createDecipheriv('aes-256-ctr', ALLANIME_KEY, iv);
-    const plain = decipher.update(ciphertext, undefined, 'utf8') + decipher.final('utf8');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', keys.aaKey, raw.subarray(1, 13));
+    decipher.setAuthTag(raw.subarray(-16));
+    const plain = decipher.update(raw.subarray(13, -16), undefined, 'utf8') + decipher.final('utf8');
 
     try {
-      const parsed = JSON.parse(plain);
-      const sourceUrls = Array.isArray(parsed) ? parsed : parsed?.episode?.sourceUrls || [];
-      return collectSourceUrls(sourceUrls, audio);
+      const sources = parseSourcePayload(JSON.parse(plain));
+      if (sources.length > 0) return sources;
     } catch {
-      return { clockUrls: [] as string[], iframeUrls: [] as StreamLink[] };
+      const sources = extractSourcesFromText(plain);
+      if (sources.length > 0) return sources;
     }
   } catch {
-    return { clockUrls: [] as string[], iframeUrls: [] as StreamLink[] };
+    // Return no sources on auth/decrypt failure.
   }
+
+  return [];
 };
+
+const providerRank = (source: AllAnimeSource) => {
+  const name = String(source.sourceName || '').trim().toLowerCase();
+  if (name === 'default') return 0;
+  if (name === 'yt-mp4' || name === 'yt') return 1;
+  if (name === 's-mp4' || name === 'sharepoint') return 2;
+  if (name === 'mp4' || name === 'mp4upload') return 3;
+  return 99;
+};
+
+const orderSources = (sources: AllAnimeSource[]) =>
+  sources
+    .filter((source) => source?.sourceUrl)
+    .sort((a, b) => {
+      const rankDiff = providerRank(a) - providerRank(b);
+      if (rankDiff !== 0) return rankDiff;
+      const aEncoded = String(a.sourceUrl || '').startsWith('--') ? 1 : 0;
+      const bEncoded = String(b.sourceUrl || '').startsWith('--') ? 1 : 0;
+      return (bEncoded - aEncoded) || (Number(b.priority || 0) - Number(a.priority || 0));
+    });
+
+async function followRedirects(url: string, maxHops = 10) {
+  let current = url;
+  for (let hop = 0; hop < maxHops; hop += 1) {
+    const res = await fetch(current, {
+      redirect: 'manual',
+      headers: { 'User-Agent': USER_AGENT, Referer: STREAM_REFERER },
+      signal: AbortSignal.timeout(10_000),
+    });
+    const location = res.headers.get('location');
+    if (res.status >= 300 && res.status < 400 && location) {
+      current = new URL(location, current).href;
+      continue;
+    }
+    return current;
+  }
+  return current;
+}
+
+async function resolveSource(source: AllAnimeSource, audio: string): Promise<StreamLink[]> {
+  const sourceUrl = String(source.sourceUrl || '');
+  if (!sourceUrl) return [];
+
+  if (/^https?:\/\//i.test(sourceUrl) && !/\/clock(?:\.json)?(?:[?#]|$)/i.test(sourceUrl)) {
+    const isMedia = /\.m3u8(?:[?#]|$)|\.(mp4|webm|mkv)(?:[?#]|$)|googlevideo\.com|wixmp\.com|okcdn\.ru/i.test(sourceUrl);
+    if (!isMedia) return [];
+
+    return [{
+      server: String(source.sourceName || 'AllAnime'),
+      url: sourceUrl,
+      directUrl: sourceUrl,
+      quality: /\.m3u8/i.test(sourceUrl) ? 'auto' : '1080',
+      audio,
+      provider: 'allmanga',
+      isHls: /\.m3u8(?:[?#]|$)/i.test(sourceUrl),
+    }];
+  }
+
+  if (!sourceUrl.startsWith('--')) return [];
+
+  const sourceName = String(source.sourceName || 'AllAnime');
+  const clockUrl = toClockUrl(decodeClockSource(sourceUrl));
+
+  if (/fast4speed\.rsvp/i.test(clockUrl) || /^yt-mp4$/i.test(sourceName)) {
+    const finalUrl = await followRedirects(clockUrl);
+    return [{
+      server: sourceName,
+      url: finalUrl,
+      directUrl: finalUrl,
+      quality: '1080',
+      audio,
+      provider: 'allmanga',
+      isHls: /\.m3u8(?:[?#]|$)/i.test(finalUrl),
+    }];
+  }
+
+  const res = await fetch(clockUrl, {
+    headers: { 'User-Agent': USER_AGENT, Referer: STREAM_REFERER },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) return [];
+
+  const data = await res.json() as { links?: Array<{ link?: string; resolutionStr?: string }> };
+  return (Array.isArray(data.links) ? data.links : [])
+    .filter((link) => link?.link && !String(link.link).includes('sk.json'))
+    .map((link) => {
+      const url = String(link.link || '');
+      return {
+        server: sourceName,
+        url,
+        directUrl: url,
+        quality: String(link.resolutionStr || '').replace(/[^\d]/g, '') || '1080',
+        audio,
+        provider: 'allmanga',
+        isHls: /\.m3u8(?:[?#]|$)/i.test(url),
+      };
+    });
+}
+
+const scoreShow = (query: string, show: AllAnimeShow, audio: TranslationType, episode = 1) => {
+  const target = normalizeTitle(query);
+  const titles = [show.name, show.englishName].map(normalizeTitle).filter(Boolean);
+  if (!target || titles.length === 0) return 0;
+
+  let score = 0;
+  let exactMatch = false;
+  for (const title of titles) {
+    if (title === target) {
+      exactMatch = true;
+      score = Math.max(score, 150);
+    } else if (target === 'onepiece' && title === '1p') {
+      exactMatch = true;
+      score = Math.max(score, 148);
+    }
+    else if (title.startsWith(target) || target.startsWith(title)) score = Math.max(score, 105);
+    else if (title.includes(target) || target.includes(title)) score = Math.max(score, 70);
+  }
+  if (score <= 0) return 0;
+
+  const rawTitle = String(show.englishName || show.name || '');
+  const rawType = String(show.type || '');
+  const asksSpecial = /\b(movie|special|recap|ova|ona)\b/i.test(query);
+  const isSpecial = /\b(movie|special|recap|ova|ona)\b/i.test(rawTitle) || /\b(movie|special|ova|ona)\b/i.test(rawType);
+  if (isSpecial && !asksSpecial) score -= 220;
+
+  const availableEpisodes = Number(show.availableEpisodes?.[audio] || 0);
+  if (episode > 0 && availableEpisodes >= episode) score += 30;
+  if (!asksSpecial && !exactMatch && availableEpisodes <= 1) score -= 120;
+  if (availableEpisodes > 1) score += Math.min(25, Math.floor(availableEpisodes / 50));
+  return score;
+};
+
+async function searchShows(query: string, audio: TranslationType): Promise<AllAnimeShow[]> {
+  const searchQueryGql = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name englishName type season availableEpisodes episodeCount}}}`;
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT, Origin: REFERER, Referer: REFERER },
+    body: JSON.stringify({
+      query: searchQueryGql,
+      variables: {
+        search: { allowAdult: false, allowUnknown: false, query: cleanSearchQuery(query) },
+        limit: 40,
+        page: 1,
+        translationType: audio,
+        countryOrigin: 'ALL',
+      },
+    }),
+    signal: AbortSignal.timeout(25_000),
+  });
+  if (!res.ok) return [];
+
+  const data = await res.json() as { data?: { shows?: { edges?: AllAnimeShow[] } } };
+  return Array.isArray(data?.data?.shows?.edges) ? data.data.shows.edges : [];
+}
 
 export async function searchAllAnime(query: string): Promise<AnimeSearchResult[]> {
   try {
-    const searchQueryGql = `query($search:SearchInput $limit:Int $page:Int $translationType:VaildTranslationTypeEnumType $countryOrigin:VaildCountryOriginEnumType){shows(search:$search limit:$limit page:$page translationType:$translationType countryOrigin:$countryOrigin){edges{_id name availableEpisodes}}}`;
-    const searchRes = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT, Origin: REFERER },
-      body: JSON.stringify({
-        query: searchQueryGql,
-        variables: {
-          search: { allowAdult: false, allowUnknown: false, query: cleanSearchQuery(query) },
-          limit: 40,
-          page: 1,
-          translationType: 'sub',
-          countryOrigin: 'ALL',
-        },
-      }),
-      signal: AbortSignal.timeout(5000),
+    const [subShows, dubShows] = await Promise.all([
+      searchShows(query, 'sub').catch(() => []),
+      searchShows(query, 'dub').catch(() => []),
+    ]);
+    const showMap = new Map<string, AllAnimeShow>();
+    [...subShows, ...dubShows].forEach((show) => {
+      const id = String(show?._id || '').trim();
+      if (id && !showMap.has(id)) showMap.set(id, show);
     });
 
-    const searchData: any = await searchRes.json();
-    const edges = searchData?.data?.shows?.edges || [];
-    return edges.map((edge: any) => {
-      const available = edge.availableEpisodes || {};
-      const episodes = Math.max(available.sub || 0, available.dub || 0, available.raw || 0, 1);
-      return {
-        id: `allanime-${edge._id}`,
-        title: edge.name,
-        session: `allanime:${edge._id}`,
-        episodes,
-      };
-    });
+    return [...showMap.values()]
+      .map((show) => {
+        const available = show.availableEpisodes || {};
+        const episodes = Math.max(Number(show.episodeCount || 0), available.sub || 0, available.dub || 0, available.raw || 0, 1);
+        return {
+          show,
+          score: Math.max(scoreShow(query, show, 'sub'), scoreShow(query, show, 'dub')),
+          result: {
+            id: `allanime-${show._id}`,
+            title: String(show.englishName || show.name || '').trim(),
+            name: show.name,
+            englishName: show.englishName || undefined,
+            session: `allanime:${show._id}`,
+            episodes,
+            year: show.season?.year,
+          } as AnimeSearchResult,
+        };
+      })
+      .filter((entry) => entry.result.title && entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.result);
   } catch {
     return [];
   }
+}
+
+async function getEpisodeSources(showId: string, episode: number, audio: string): Promise<AllAnimeSource[]> {
+  const keys = await fetchDynamicKeys();
+  const variables = {
+    showId,
+    translationType: audio,
+    episodeString: String(episode),
+  };
+  const params = new URLSearchParams({
+    variables: JSON.stringify(variables),
+    extensions: JSON.stringify({
+      persistedQuery: { version: 1, sha256Hash: keys.queryHash },
+      aaReq: await generateAaReq(),
+    }),
+  });
+
+  let data: EpisodeSourcePayload | undefined;
+  try {
+    const res = await fetch(`${API_URL}?${params.toString()}`, {
+      headers: { 'User-Agent': USER_AGENT, Origin: REFERER, Referer: REFERER },
+      signal: AbortSignal.timeout(10_000),
+    });
+    data = await res.json() as EpisodeSourcePayload;
+  } catch {
+    data = undefined;
+  }
+
+  const plainSources = parseSourcePayload(data?.data?.episode);
+  if (plainSources.length > 0) return plainSources;
+  const encrypted = data?.data?.tobeparsed;
+  return encrypted ? decryptTobeparsed(encrypted) : [];
 }
 
 export async function fetchAllAnimeStreams(title: string, episode: number, audio = 'sub', showId?: string): Promise<StreamLink[]> {
@@ -185,133 +415,29 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
 
     if (!showIdToUse) return [];
 
-    // Primary method: GET with aaReq GCM auth token (matching ani-cli PR #1779)
-    const queryVars = JSON.stringify({
-      showId: showIdToUse,
-      translationType: audio,
-      episodeString: String(episode),
-    });
+    const sources = orderSources(await getEpisodeSources(showIdToUse, episode, audio));
+    const resolved = await Promise.all(sources.map((source) => resolveSource(source, audio).catch(() => [])));
+    const seen = new Set<string>();
 
-    const aaReq = generateAaReq();
-    const queryExt = JSON.stringify({
-      persistedQuery: { version: 1, sha256Hash: EPISODE_HASH },
-      aaReq,
-    });
-
-    const epParams = new URLSearchParams({
-      variables: queryVars,
-      extensions: queryExt,
-    });
-
-    let epData: any = null;
-
-    try {
-      const epRes = await fetch(`${API_URL}?${epParams.toString()}`, {
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Origin': REFERER,
-          'Referer': REFERER,
-          'x-build-id': AA_BUILD_ID,
-        },
-        signal: AbortSignal.timeout(8000),
+    return resolved.flat()
+      .filter((stream) => {
+        const url = String(stream.directUrl || stream.url || '');
+        if (!url || /streamwish|streamsb|sbvideo|sbfull|sbspeed|sbfast|streamtape|embedsito|ok\.ru/i.test(url)) return false;
+        const key = `${stream.audio}:${stream.quality}:${url}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => {
+        const score = (stream: StreamLink) => {
+          const url = String(stream.url || '');
+          const quality = Number(String(stream.quality || '').replace(/[^\d]/g, '')) || 0;
+          return (stream.isHls || /\.m3u8/i.test(url) ? 10_000 : 0)
+            + (/googlevideo\.com|wixmp\.com|fast4speed\.rsvp/i.test(url) ? 5_000 : 0)
+            + quality;
+        };
+        return score(b) - score(a);
       });
-      epData = await epRes.json();
-    } catch {
-      // GET failed
-    }
-
-    // Fallback to POST if GET didn't return valid data
-    if (!epData || (!epData?.data?.tobeparsed && !epData?.data?.episode?.sourceUrls)) {
-      try {
-        const episodeGql = `query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode( showId: $showId translationType: $translationType episodeString: $episodeString ) { episodeString sourceUrls }}`;
-        const postRes = await fetch(API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': USER_AGENT,
-            'Origin': REFERER,
-            'Referer': REFERER,
-          },
-          body: JSON.stringify({
-            variables: {
-              showId: showIdToUse,
-              translationType: audio,
-              episodeString: String(episode),
-            },
-            query: episodeGql,
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
-        epData = await postRes.json();
-      } catch {
-        return [];
-      }
-    }
-
-    const directSources = collectSourceUrls(epData?.data?.episode?.sourceUrls || [], audio);
-    const encryptedSources = epData?.data?.tobeparsed ? decryptTobeparsed(epData.data.tobeparsed, audio) : null;
-
-    const clockUrls = [
-      ...directSources.clockUrls,
-      ...(encryptedSources?.clockUrls || []),
-    ];
-    let rawLinks = [
-      ...directSources.iframeUrls,
-      ...(encryptedSources?.iframeUrls || []),
-    ];
-
-    await Promise.all(clockUrls.map(async (clock) => {
-      try {
-        const res = await fetch(clock, {
-          headers: { 'User-Agent': USER_AGENT, Referer: REFERER },
-          signal: AbortSignal.timeout(5000),
-        });
-        const data: any = await res.json();
-        const links = Array.isArray(data?.links) ? data.links : [];
-        for (const link of links) {
-          if (!link.link || String(link.link).includes('sk.json')) continue;
-          rawLinks.push({
-            server: 'AllAnime',
-            url: link.link,
-            quality: link.resolutionStr || '720p',
-            audio,
-            provider: 'allmanga',
-          });
-        }
-      } catch {
-        // Keep the other clocks/iframe fallbacks.
-      }
-    }));
-
-    rawLinks = rawLinks.filter((stream) => {
-      const url = stream.url.toLowerCase();
-      if (url.includes('.m3u8')) return true;
-      if (url.includes('.mp4')) return true;
-      if (url.includes('googlevideo.com')) return true;
-      if (url.includes('wixmp.com')) return true;
-      if (url.includes('okcdn.ru')) return true;
-      if (url.includes('megaplay.su')) return true;
-      if (url.includes('mp4upload')) return true;
-      if (url.includes('ok.ru') || url.includes('vk.com')) return true;
-      return false;
-    });
-
-    rawLinks.sort((a, b) => {
-      const score = (stream: StreamLink) => {
-        const quality = String(stream.quality || '').toLowerCase();
-        let value = 0;
-        if (quality.includes('720')) value += 720;
-        else if (quality.includes('1080')) value += 710;
-        else if (quality.includes('auto')) value += 700;
-        else value += Number(quality.replace(/[^\d]/g, '')) || 0;
-        if (stream.url.includes('.m3u8')) value += 5000;
-        if (stream.url.includes('ok.ru')) value -= 500;
-        return value;
-      };
-      return score(b) - score(a);
-    });
-
-    return rawLinks;
   } catch {
     return [];
   }
