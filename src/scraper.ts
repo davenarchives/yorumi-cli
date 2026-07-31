@@ -122,6 +122,19 @@ export const resolveEpisodeStreamUrl = async (
     }
   }
 
+  // Fallback to AniNeko provider if AllAnime fails
+  if (allValidStreams.length === 0) {
+    const { fetchAniNekoStreams } = await import('./anineko.js');
+    for (const audio of order as ('sub' | 'dub')[]) {
+      const aniNekoStreams = await fetchAniNekoStreams(cleanTitle, epNum, audio);
+      for (const stream of aniNekoStreams) {
+        const streamUrl = stream.directUrl || stream.url;
+        if (!selectStream) return { stream, url: streamUrl };
+        allValidStreams.push(stream as StreamLink);
+      }
+    }
+  }
+
   if (allValidStreams.length > 0) {
     if (selectStream) {
       const { chooseFromList } = await import('./utils.js');

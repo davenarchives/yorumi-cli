@@ -1,5 +1,10 @@
 import crypto from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { AnimeSearchResult, StreamLink } from './types.js';
+
+const execFileAsync = promisify(execFile);
+
 
 const API_URL = 'https://api.mkissa.net/api';
 const REFERER = 'https://mkissa.to';
@@ -95,8 +100,8 @@ async function fetchDynamicKeys(): Promise<DynamicKeys> {
   }
 
   return {
-    epoch: 6886,
-    aaKey: Buffer.from('a55ce35d83c1417fdfec0192c2b847eeae58d5bbb331a179d293aac40c035795', 'hex'),
+    epoch: 6887,
+    aaKey: Buffer.from('c9df59c795466fc271f8e48af65e7390860ac465acf6d2cb6a17670c8e5505b0', 'hex'),
     queryHash: STATIC_QUERY_HASH,
     fetchTime: Date.now(),
   };
@@ -105,7 +110,7 @@ async function fetchDynamicKeys(): Promise<DynamicKeys> {
 async function generateAaReq() {
   const keys = await fetchDynamicKeys();
   const ts = Math.floor(Date.now() / TS_BUCKET_MS) * TS_BUCKET_MS;
-  const payload = { v: 1, ts, epoch: keys.epoch, qh: keys.queryHash };
+  const payload = { v: 1, ts, epoch: keys.epoch, buildId: '74', qh: keys.queryHash, k: 'k7' };
   const nonce = crypto.createHash('sha256').update(`${keys.epoch}:${keys.queryHash}:${ts}`).digest().subarray(0, 12);
   const cipher = crypto.createCipheriv('aes-256-gcm', keys.aaKey, nonce);
   const ciphertext = Buffer.concat([cipher.update(Buffer.from(JSON.stringify(payload))), cipher.final()]);
@@ -401,7 +406,92 @@ async function getEpisodeSources(showId: string, episode: number, audio: string)
   const plainSources = parseSourcePayload(data?.data?.episode);
   if (plainSources.length > 0) return plainSources;
   const encrypted = data?.data?.tobeparsed;
-  return encrypted ? decryptTobeparsed(encrypted) : [];
+  if (encrypted) return decryptTobeparsed(encrypted);
+
+  try {
+    const EPISODE_GQL = `query($showId:String! $translationType:VaildTranslationTypeEnumType! $episodeString:String!){episode(showId:$showId translationType:$translationType episodeString:$episodeString){episodeString sourceUrls}}`;
+    const postRes = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT, Origin: REFERER, Referer: REFERER },
+      body: JSON.stringify({ query: EPISODE_GQL, variables }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const postData = await postRes.json() as EpisodeSourcePayload;
+    const postSources = parseSourcePayload(postData?.data?.episode);
+    if (postSources.length > 0) return postSources;
+    if (postData?.data?.tobeparsed) return decryptTobeparsed(postData.data.tobeparsed);
+  } catch {
+    // Ignore error and return empty array.
+  }
+
+  return [];
+}
+
+async function fetchAnidbUrl(url: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('curl', [
+      '-sL',
+      url,
+      '-A',
+      USER_AGENT,
+      '-H',
+      'Accept: application/json',
+      '-H',
+      'Referer: https://anidb.app/',
+      '--max-time',
+      '10',
+    ]);
+    if (stdout && stdout.trim().length > 0) {
+      return stdout.trim();
+    }
+  } catch {
+    // ignore curl failure
+  }
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', Referer: 'https://anidb.app/' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    return await res.text();
+  } catch {
+    return '';
+  }
+}
+
+async function searchAnidb(query: string): Promise<string | undefined> {
+  const q = encodeURIComponent(query.trim());
+  const page = await fetchAnidbUrl(`https://anidb.app/search/suggestions?q=${q}`);
+  if (!page) return undefined;
+  const match = page.match(/anime\/[a-z0-9-]+-(\d+)/i);
+  return match ? match[1] : undefined;
+}
+
+async function getAnidbStreamLink(title: string, episodeNumber: number, audio: string): Promise<string | undefined> {
+  if (!title || episodeNumber <= 0) return undefined;
+  const id = await searchAnidb(title);
+  if (!id) return undefined;
+  const epJsonStr = await fetchAnidbUrl(`https://anidb.app/api/frontend/anime/${id}/episodes`);
+  if (!epJsonStr) return undefined;
+  try {
+    const epData = JSON.parse(epJsonStr);
+    const epList = Array.isArray(epData) ? epData : (epData.episodes || epData.data || []);
+    const targetEp = epList.find((e: any) => String(e.number) === String(episodeNumber));
+    if (!targetEp?.id) return undefined;
+
+    const langJsonStr = await fetchAnidbUrl(`https://anidb.app/api/frontend/episode/${targetEp.id}/languages`);
+    if (!langJsonStr) return undefined;
+    const langData = JSON.parse(langJsonStr);
+    const langList = Array.isArray(langData) ? langData : (langData.languages || langData.data || []);
+    const pref = audio === 'dub' ? 'eng' : 'jpn';
+    const targetLang = langList.find((l: any) => l.code === pref) || langList[0];
+    if (!targetLang?.embed_url) return undefined;
+
+    const embedPage = await fetchAnidbUrl(targetLang.embed_url);
+    const m3u8Match = embedPage.match(/file:\s*['"]([^'"]+)['"]/);
+    return m3u8Match ? m3u8Match[1] : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function fetchAllAnimeStreams(title: string, episode: number, audio = 'sub', showId?: string): Promise<StreamLink[]> {
@@ -413,31 +503,49 @@ export async function fetchAllAnimeStreams(title: string, episode: number, audio
       showIdToUse = matches[0]?.session?.replace('allanime:', '');
     }
 
-    if (!showIdToUse) return [];
+    let resolvedStreams: StreamLink[] = [];
+    if (showIdToUse) {
+      const sources = orderSources(await getEpisodeSources(showIdToUse, episode, audio));
+      const resolved = await Promise.all(sources.map((source) => resolveSource(source, audio).catch(() => [])));
+      const seen = new Set<string>();
 
-    const sources = orderSources(await getEpisodeSources(showIdToUse, episode, audio));
-    const resolved = await Promise.all(sources.map((source) => resolveSource(source, audio).catch(() => [])));
-    const seen = new Set<string>();
+      resolvedStreams = resolved.flat()
+        .filter((stream) => {
+          const url = String(stream.directUrl || stream.url || '');
+          if (!url || /streamwish|streamsb|sbvideo|sbfull|sbspeed|sbfast|streamtape|embedsito|ok\.ru/i.test(url)) return false;
+          const key = `${stream.audio}:${stream.quality}:${url}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .sort((a, b) => {
+          const score = (stream: StreamLink) => {
+            const url = String(stream.url || '');
+            const quality = Number(String(stream.quality || '').replace(/[^\d]/g, '')) || 0;
+            return (stream.isHls || /\.m3u8/i.test(url) ? 10_000 : 0)
+              + (/googlevideo\.com|wixmp\.com|fast4speed\.rsvp/i.test(url) ? 5_000 : 0)
+              + quality;
+          };
+          return score(b) - score(a);
+        });
+    }
 
-    return resolved.flat()
-      .filter((stream) => {
-        const url = String(stream.directUrl || stream.url || '');
-        if (!url || /streamwish|streamsb|sbvideo|sbfull|sbspeed|sbfast|streamtape|embedsito|ok\.ru/i.test(url)) return false;
-        const key = `${stream.audio}:${stream.quality}:${url}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => {
-        const score = (stream: StreamLink) => {
-          const url = String(stream.url || '');
-          const quality = Number(String(stream.quality || '').replace(/[^\d]/g, '')) || 0;
-          return (stream.isHls || /\.m3u8/i.test(url) ? 10_000 : 0)
-            + (/googlevideo\.com|wixmp\.com|fast4speed\.rsvp/i.test(url) ? 5_000 : 0)
-            + quality;
-        };
-        return score(b) - score(a);
-      });
+    if (resolvedStreams.length === 0 && title) {
+      const fallbackUrl = await getAnidbStreamLink(title, episode, audio);
+      if (fallbackUrl) {
+        resolvedStreams.push({
+          quality: '1080p',
+          audio,
+          provider: 'Anidb',
+          server: 'anidb.app',
+          url: fallbackUrl,
+          directUrl: fallbackUrl,
+          isHls: /\.m3u8/i.test(fallbackUrl),
+        });
+      }
+    }
+
+    return resolvedStreams;
   } catch {
     return [];
   }

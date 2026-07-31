@@ -2,6 +2,12 @@
 
 All notable changes to the Yorumi CLI project will be documented in this file.
 
+## [2.1.9] - 2026-07-31
+
+### Fixed & Added
+- **Multi-Provider Fallback**: Added standalone `AniNeko` stream scraper (`src/anineko.ts`) as a fallback provider when `AllAnime` streams fail or are missing for an episode.
+- **Search Episode Ranking**: Fixed episode calculation in `backend-search.ts` to prevent unreleased upcoming seasons (with 0 episodes) from being incorrectly scored and misranked above main released seasons.
+
 ## [2.1.8] - 2026-07-26
 
 ### Fixed & Changed

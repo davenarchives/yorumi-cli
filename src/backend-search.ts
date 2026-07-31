@@ -108,7 +108,7 @@ async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnime
     const edges = Array.isArray(data?.data?.shows?.edges) ? data.data.shows.edges : [];
     const results = edges.map((edge: any) => {
       const available = edge.availableEpisodes || {};
-      const episodes = Math.max(available.sub || 0, available.dub || 0, available.raw || 0, 1);
+      const episodes = Math.max(available.sub || 0, available.dub || 0, available.raw || 0);
 
       return {
         id: `allanime-${edge._id}`,
