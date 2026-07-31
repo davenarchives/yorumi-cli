@@ -24,8 +24,10 @@ export async function fetchAniNekoStreams(title: string, episode: number, audio:
       const slugMatch = hrefMatch[1].match(/\/watch\/([^/?#]+)/);
       if (!slugMatch) continue;
       const slug = slugMatch[1];
+      const imgMatch = m[0].match(/<img\b[^>]*alt=["']([^"']+)["'][^>]*>/i);
       const titleMatch = m[0].match(/<(?:h3|[^>]+class=["'][^"']*nv-anime-title[^"']*["'][^>]*)>([\s\S]*?)<\/(?:h3|[^>]+)>/i);
-      results.push({ slug, text: titleMatch ? stripTags(titleMatch[1]) : slug.replace(/-/g, " ") });
+      const text = imgMatch ? decodeEntities(imgMatch[1]) : (titleMatch ? stripTags(titleMatch[1]) : slug.replace(/-/g, " "));
+      results.push({ slug, text });
     }
 
     if (results.length === 0) return [];
@@ -61,7 +63,8 @@ export async function fetchAniNekoStreams(title: string, episode: number, audio:
       }
     }
 
-    const embeds = byAudio[audio] || byAudio['sub'] || [];
+    const targetAudio = byAudio[audio]?.length > 0 ? audio : 'sub';
+    const embeds = byAudio[targetAudio] || [];
     const streams = [];
 
     for (let i = 0; i < embeds.length; i++) {
@@ -86,7 +89,7 @@ export async function fetchAniNekoStreams(title: string, episode: number, audio:
               url: hlsUrl,
               directUrl: hlsUrl,
               quality: 'Auto',
-              audio,
+              audio: targetAudio,
               isHls: true,
               referer: `${new URL(embed).origin}/`
             });
