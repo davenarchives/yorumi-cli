@@ -78,8 +78,9 @@ export async function searchAniDB(query: string): Promise<AnimeSearchResult[]> {
       const slug = m[1];
       const id = m[2];
       const inner = m[3];
-      const titleMatch = inner.match(/alt=["']([^"']+)["']/i) || inner.match(/<p[^>]*>([^<]+)<\/p>/i);
-      const yearMatch = inner.match(/(\d{4})/);
+      const textWithoutImg = inner.replace(/<img[^>]*>/gi, '');
+      const titleMatch = inner.match(/alt=["']([^"']+)["']/i) || textWithoutImg.match(/<p[^>]*>([^<]+)<\/p>/i);
+      const yearMatch = textWithoutImg.match(/\b(19\d{2}|20\d{2})\b/);
       const title = titleMatch ? titleMatch[1] : slug.replace(/-\d+$/, '').replace(/-/g, ' ');
       addResult(slug, id, title, yearMatch ? yearMatch[1] : undefined);
     }
@@ -97,8 +98,9 @@ export async function searchAniDB(query: string): Promise<AnimeSearchResult[]> {
         const slug = m[1];
         const id = m[2];
         const inner = m[3];
-        const titleMatch = inner.match(/alt=["']([^"']+)["']/i) || inner.match(/<p[^>]*>([^<]+)<\/p>/i) || inner.match(/title=["']([^"']+)["']/i);
-        const yearMatch = inner.match(/(\d{4})/);
+        const textWithoutImg = inner.replace(/<img[^>]*>/gi, '');
+        const titleMatch = inner.match(/alt=["']([^"']+)["']/i) || textWithoutImg.match(/<p[^>]*>([^<]+)<\/p>/i) || inner.match(/title=["']([^"']+)["']/i);
+        const yearMatch = textWithoutImg.match(/\b(19\d{2}|20\d{2})\b/);
         const title = titleMatch ? titleMatch[1] : slug.replace(/-\d+$/, '').replace(/-/g, ' ');
         addResult(slug, id, title, yearMatch ? yearMatch[1] : undefined);
       }
