@@ -1,4 +1,5 @@
 import { AnimeSearchResult } from './types.js';
+import { searchAniDB } from './anidb.js';
 import { searchAllAnime as searchDirectAllAnime } from './allanime.js';
 
 const LOCAL_API_BASE = process.env.YORUMI_API_BASE ? String(process.env.YORUMI_API_BASE).replace(/\/+$/, '') : null;
@@ -97,14 +98,10 @@ async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnime
     });
 
     if (!res.ok) {
-      console.error(`Fetch failed with status: ${res.status}`);
       return [];
     }
 
     const data: any = await res.json();
-    if (data.errors) {
-      console.error('GraphQL errors:', data.errors);
-    }
     const edges = Array.isArray(data?.data?.shows?.edges) ? data.data.shows.edges : [];
     const results = edges.map((edge: any) => {
       const available = edge.availableEpisodes || {};
@@ -122,45 +119,57 @@ async function fetchAllAnimeResults(options: { query?: string; sortBy?: AllAnime
     }).filter((item: AnimeSearchResult) => item.title);
 
     return options.query ? rankSearchResults(options.query, results) : results;
-  } catch (error) {
-    console.error('fetchAllAnimeResults error:', error);
+  } catch {
     return [];
   }
 }
 
 export async function getLatestAnime(): Promise<AnimeSearchResult[]> {
   try {
+    const anidbResults = await searchAniDB('2026').catch(() => []);
+    if (anidbResults.length > 0) return anidbResults.slice(0, 15);
+  } catch {}
+
+  try {
     const backendResults = await fetchBackendResults('/anime/search?sort=TRENDING_DESC');
     if (backendResults.length > 0) return backendResults;
-  } catch {
-    // Fall back to the direct provider below.
-  }
+  } catch {}
 
   return fetchAllAnimeResults({ sortBy: 'Latest_Update', limit: 15 }).catch(() => []);
 }
 
 export async function getPopularAnime(): Promise<AnimeSearchResult[]> {
   try {
+    const anidbResults = await searchAniDB('popular').catch(() => []);
+    if (anidbResults.length > 0) return anidbResults.slice(0, 15);
+  } catch {}
+
+  try {
     const backendResults = await fetchBackendResults('/anime/search?sort=POPULARITY_DESC');
     if (backendResults.length > 0) return backendResults;
-  } catch {
-    // Fall back to the direct provider below.
-  }
+  } catch {}
 
   return fetchAllAnimeResults({ sortBy: 'Score', limit: 15 }).catch(() => []);
 }
 
 export async function searchAllAnime(query: string): Promise<AnimeSearchResult[]> {
+  // 1. Primary: Search AniDB directly (fastest, standalone, accurate)
+  try {
+    const anidbResults = await searchAniDB(query);
+    if (anidbResults.length > 0) {
+      return rankSearchResults(query, anidbResults);
+    }
+  } catch {}
+
+  // 2. Secondary: Try local backend if running
   try {
     const backendResults = await fetchBackendResults(`/anime/search?query=${encodeURIComponent(query)}`);
     if (backendResults.length > 0) return rankSearchResults(query, backendResults);
-  } catch {
-    // Fall back to the direct provider below.
-  }
+  } catch {}
 
-  if (!LOCAL_API_BASE) return searchDirectAllAnime(query).catch(() => []);
+  // 3. Tertiary: Fallback to AllAnime
+  const directResults = await fetchAllAnimeResults({ query }).catch(() => []);
+  if (directResults.length > 0) return directResults;
 
-    const directResults = await fetchAllAnimeResults({ query }).catch(() => []);
-    if (directResults.length > 0) return directResults;
-    return searchDirectAllAnime(query).catch(() => []);
+  return searchDirectAllAnime(query).catch(() => []);
 }

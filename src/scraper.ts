@@ -1,4 +1,5 @@
 import { StreamLink, AnimeSearchResult, Episode } from './types.js';
+import { fetchAniDBStreams } from './anidb.js';
 import { fetchAllAnimeStreams } from './allanime.js';
 
 import https from 'node:https';
@@ -9,7 +10,7 @@ function isStreamValid(url: string, referer: string): Promise<boolean> {
     if (/streamlare\.com/i.test(url)) return resolve(false);
 
     // For iframe fallbacks (like mp4upload), fetch the HTML and check if the video was deleted
-    if (!/\.(m3u8|mkv|mp4)(\?|$)/i.test(url) && !/googlevideo\.com|allanime\.day|wixmp\.com|fast4speed\.rsvp/i.test(url)) {
+    if (!/\.(m3u8|mkv|mp4)(\?|$)/i.test(url) && !/googlevideo\.com|allanime\.day|wixmp\.com|fast4speed\.rsvp|anidb\.app/i.test(url)) {
       const ac = new AbortController();
       const timeout = setTimeout(() => ac.abort(), 4000);
       fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': referer }, signal: ac.signal })
@@ -30,7 +31,7 @@ function isStreamValid(url: string, referer: string): Promise<boolean> {
     const req = client.request(url, {
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Referer': referer,
         'Range': 'bytes=0-100' // Use Range GET to mimic player
       }
@@ -57,82 +58,102 @@ export const resolveEpisodeStreamUrl = async (
   selectStream: boolean = false
 ): Promise<{ stream: StreamLink; url: string }> => {
   const epNum = episode.episodeNumber;
-  const isAllAnime = anime.session.startsWith('allanime:');
   const cleanTitle = anime.title.replace(/\(Dub\)/i, '').trim();
+  const isAniDB = String(anime.session || '').startsWith('anidb:') || /^\d+$/.test(String(anime.id));
+  const isAllAnime = String(anime.session || '').startsWith('allanime:');
 
-  if (!isAllAnime) {
-    // nocache=1 ensures we bypass stale in-memory cache on the backend
-    const backendUrl = `http://localhost:3001/api/anime/stream?id=${anime.id}&episode=${epNum}&source=anineko&nocache=1`;
-
-    try {
-      const res = await fetch(backendUrl);
-      if (!res.ok) throw new Error('Backend failed to resolve stream');
-      const data: any = await res.json();
-
-      if (!data || (!data.m3u8 && !data.url)) {
-        throw new Error('No stream found in backend response');
-      }
-
-      // Reject player iframe/embed URLs — mpv can't play them directly
-      const rawUrl: string = data.m3u8 || data.url;
-      const path = rawUrl.replace(/^https?:\/\/[^/]+/, '');
-      if (/player\.(videasy|vidsrc|2embed)/.test(rawUrl) || /^\/anime\/\d+\/\d+/.test(path)) {
-        throw new Error(`Backend returned an embed URL (${data.source}), not a direct stream`);
-      }
-
-      let streamUrl = rawUrl;
-      const referer = data.referer || 'https://vivibebe.site/';
-
-      // If it's an HLS stream, pass it through the backend proxy so PNG headers are stripped
-      if (/\.m3u8/i.test(streamUrl)) {
-        streamUrl = `http://localhost:3001/api/scraper/proxy?url=${encodeURIComponent(streamUrl)}&referer=${encodeURIComponent(referer)}&proxyMedia=1`;
-      }
-
-      const streamObj: StreamLink = {
-        provider: data.source || 'anineko',
-        server: 'vivibebe',
-        url: streamUrl,
-        quality: 'Auto',
-        audio: 'sub',
-        isHls: /\.m3u8/i.test(streamUrl)
-      };
-
-      return { stream: streamObj, url: streamUrl };
-    } catch (error: any) {
-      console.error('Failed to get stream from local backend:', error.message);
-    }
-  }
-
-  const order = [];
+  const order: ('sub' | 'dub')[] = [];
   if (sub && !dub) order.push('sub');
   else if (dub && !sub) order.push('dub');
   else order.push('sub', 'dub');
 
   const allValidStreams: StreamLink[] = [];
-  const showId = isAllAnime ? anime.session.replace('allanime:', '') : undefined;
 
+  // 1. Primary: Try AniDB scraper directly (fastest, standalone, no backend required)
   for (const audio of order) {
-    const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
-    for (const stream of allAnimeStreams) {
-      const streamUrl = stream.directUrl || stream.url;
-      if (/googlevideo\.com|allanime\.day|wixmp\.com|fast4speed\.rsvp/i.test(streamUrl) || await isStreamValid(streamUrl, 'https://allmanga.to')) {
+    try {
+      const anidbStreams = await fetchAniDBStreams(anime.id, epNum, audio);
+      for (const stream of anidbStreams) {
+        const streamUrl = stream.directUrl || stream.url;
         if (!selectStream) return { stream, url: streamUrl };
         allValidStreams.push(stream);
+      }
+    } catch {
+      // Try searching for AniDB ID by title if anime was from another provider
+      if (!isAniDB) {
+        try {
+          const { searchAniDB } = await import('./anidb.js');
+          const anidbResults = await searchAniDB(cleanTitle);
+          if (anidbResults.length > 0) {
+            const anidbStreams = await fetchAniDBStreams(anidbResults[0].id, epNum, audio);
+            for (const stream of anidbStreams) {
+              const streamUrl = stream.directUrl || stream.url;
+              if (!selectStream) return { stream, url: streamUrl };
+              allValidStreams.push(stream);
+            }
+          }
+        } catch {}
       }
     }
   }
 
-  // Fallback to AniNeko provider if AllAnime fails
+  // 2. Fallback: Try AllAnime provider
   if (allValidStreams.length === 0) {
-    const { fetchAniNekoStreams } = await import('./anineko.js');
-    for (const audio of order as ('sub' | 'dub')[]) {
-      const aniNekoStreams = await fetchAniNekoStreams(cleanTitle, epNum, audio);
-      for (const stream of aniNekoStreams) {
-        const streamUrl = stream.directUrl || stream.url;
-        if (!selectStream) return { stream, url: streamUrl };
-        allValidStreams.push(stream as StreamLink);
-      }
+    const showId = isAllAnime ? anime.session.replace('allanime:', '') : undefined;
+    for (const audio of order) {
+      try {
+        const allAnimeStreams = await fetchAllAnimeStreams(cleanTitle, epNum, audio, showId);
+        for (const stream of allAnimeStreams) {
+          const streamUrl = stream.directUrl || stream.url;
+          if (/googlevideo\.com|allanime\.day|wixmp\.com|fast4speed\.rsvp/i.test(streamUrl) || await isStreamValid(streamUrl, 'https://allmanga.to')) {
+            if (!selectStream) return { stream, url: streamUrl };
+            allValidStreams.push(stream);
+          }
+        }
+      } catch {}
     }
+  }
+
+  // 3. Fallback: Try local backend if running
+  if (allValidStreams.length === 0 && !isAllAnime) {
+    const backendUrl = `http://localhost:3001/api/anime/stream?id=${anime.id}&episode=${epNum}&source=anidb&nocache=1`;
+    try {
+      const res = await fetch(backendUrl, { signal: AbortSignal.timeout(2500) });
+      if (res.ok) {
+        const data: any = await res.json();
+        const rawUrl: string = data?.m3u8 || data?.url;
+        if (rawUrl && !/player\.(videasy|vidsrc|2embed)/.test(rawUrl)) {
+          let streamUrl = rawUrl;
+          const referer = data.referer || 'https://anidb.app/';
+          const streamObj: StreamLink = {
+            provider: data.source || 'anidb',
+            server: 'anidb-backend',
+            url: streamUrl,
+            quality: 'Auto',
+            audio: 'sub',
+            isHls: /\.m3u8/i.test(streamUrl),
+            referer
+          };
+          if (!selectStream) return { stream: streamObj, url: streamUrl };
+          allValidStreams.push(streamObj);
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Fallback: Try AniNeko provider
+  if (allValidStreams.length === 0) {
+    try {
+      const { fetchAniNekoStreams } = await import('./anineko.js');
+      for (const audio of order) {
+        const aniNekoStreams = await fetchAniNekoStreams(cleanTitle, epNum, audio);
+        for (const stream of aniNekoStreams) {
+          const streamUrl = stream.directUrl || stream.url;
+          if (!selectStream) return { stream, url: streamUrl };
+          allValidStreams.push(stream as StreamLink);
+        }
+      }
+    } catch {}
   }
 
   if (allValidStreams.length > 0) {

@@ -227,13 +227,21 @@ echo ""
 write_success "Yorumi CLI installed successfully!"
 echo ""
 write_info "Run: yorumi-cli --help"
-if ! command -v mpv &> /dev/null; then
-    write_warn "Install mpv before running yorumi-cli."
-fi
-if ! command -v yt-dlp &> /dev/null; then
-    write_warn "Install yt-dlp so fallback providers work correctly."
-fi
-if ! command -v ffmpeg &> /dev/null; then
-    write_warn "Install ffmpeg before using yorumi-cli --download."
+
+OS_NAME="$(uname -s 2>/dev/null || echo "")"
+if [ "$OS_NAME" = "Darwin" ]; then
+    if ! command -v mpv &> /dev/null && [ ! -e "/Applications/IINA.app" ]; then
+        write_note "macOS tip: brew install mpv yt-dlp ffmpeg fzf (or brew install --cask iina)"
+    fi
+else
+    if ! command -v mpv &> /dev/null; then
+        write_warn "Install mpv before running yorumi-cli."
+    fi
+    if ! command -v yt-dlp &> /dev/null; then
+        write_warn "Install yt-dlp so fallback providers work correctly."
+    fi
+    if ! command -v ffmpeg &> /dev/null; then
+        write_warn "Install ffmpeg before using yorumi-cli --download."
+    fi
 fi
 echo ""

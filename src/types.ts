@@ -24,6 +24,8 @@ export interface StreamLink {
   url: string;
   directUrl?: string;
   isHls?: boolean;
+  referer?: string;
+  subtitles?: any[];
 }
 
 export interface EpisodesPayload {

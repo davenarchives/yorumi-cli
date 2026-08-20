@@ -2,6 +2,13 @@
 
 All notable changes to the Yorumi CLI project will be documented in this file.
 
+## [2.2.0] - 2026-08-20
+
+### Added & Changed
+- **AniDB Native Scraper Integration (`src/anidb.ts`)**: Integrated standalone `AniDB` scraper based on `anidb.app` (cross-referenced with `ani-cli` standards) as the primary search and streaming provider.
+- **Ultra-Fast Standalone Streaming**: Queries `anidb.app` suggestions and language endpoints directly using `curl` / `fetch`, providing direct 1080p, 720p, and 360p HLS playback in `mpv` without requiring a local Yorumi backend.
+- **Resilient Fallback Hierarchy**: Search and stream pipelines now query `AniDB` first, followed by `AllAnime` and `AniNeko` fallback providers if any source is unavailable.
+
 ## [2.1.9] - 2026-07-31
 
 ### Fixed & Added

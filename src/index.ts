@@ -9,7 +9,7 @@ import { searchAllAnime, getLatestAnime, getPopularAnime } from './backend-searc
 import { playInMediaPlayer, getStreamReferer } from './player.js';
 import { downloadEpisodes } from './downloader.js';
 import { updateYorumiCli, uninstallYorumiCli } from './system.js';
-import { CliOptions, AnimeSearchResult } from './types.js';
+import { CliOptions, AnimeSearchResult, Episode } from './types.js';
 
 const getCliVersion = () => {
   try {
@@ -236,7 +236,18 @@ const main = async () => {
 
   console.log(`Fetching episodes for ${anime.title}...`);
   
-  if (!anime.session.startsWith('allanime:')) {
+  let episodes: Episode[] = [];
+
+  // 1. Try AniDB real episode listing
+  if (String(anime.session || '').startsWith('anidb:') || /^\d+$/.test(String(anime.id))) {
+    try {
+      const { getAniDBEpisodes } = await import('./anidb.js');
+      episodes = await getAniDBEpisodes(anime.id);
+    } catch {}
+  }
+
+  // 2. Fallback: try local backend metadata if running
+  if (episodes.length === 0 && !anime.session.startsWith('allanime:')) {
     try {
       const metaRes = await fetch(`http://localhost:3001/api/anime/metadata?id=${anime.id}`);
       if (metaRes.ok) {
@@ -244,29 +255,23 @@ const main = async () => {
         if (meta.episodes && meta.episodes > 0) {
           anime.episodes = meta.episodes;
         }
-      } else {
-        console.error(`\n[ERROR] Failed to fetch metadata for ${anime.title}. Status: ${metaRes.status}`);
-        await new Promise(r => setTimeout(r, 2000));
       }
-    } catch (e) {
-      console.error(`\n[ERROR] Network error fetching metadata for ${anime.title}:`, e);
-      await new Promise(r => setTimeout(r, 2000));
+    } catch {}
+  }
+
+  // 3. If no episode list was found, build range 1..maxEp
+  if (episodes.length === 0) {
+    const maxEp = anime.episodes || 500;
+    for (let i = 1; i <= maxEp; i++) {
+      episodes.push({
+        id: `yorumi:${anime.id}-ep-${i}`,
+        session: `yorumi:${anime.id}-ep-${i}`,
+        episodeNumber: i
+      });
     }
   }
 
-  let episodePayload;
-  
-  // If we STILL don't have anime.episodes, default to 500 instead of 1 so they aren't completely blocked
-  const maxEp = anime.episodes || 500;
-  const episodes = [];
-  for (let i = 1; i <= maxEp; i++) {
-    episodes.push({
-      id: `yorumi:${anime.id}-ep-${i}`,
-      session: `yorumi:${anime.id}-ep-${i}`,
-      episodeNumber: i
-    });
-  }
-  episodePayload = { episodes };
+  const episodePayload = { episodes };
   const selectedEpisodes = options.range
     ? parseEpisodeRange(options.range, episodePayload.episodes)
     : [await selectEpisode(episodePayload.episodes, options.episode)];

@@ -1,6 +1,6 @@
 {
   "name": "yorumi-cli",
-  "version": "2.1.9",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "description": "Command-line AllManga watcher using Yorumi scraper logic",

@@ -9,6 +9,30 @@ export const resolvePlayerCommand = async (player: string) => {
   if (existsSync(player)) return player;
   if (await commandExists(player)) return player;
 
+  if (platform() === 'darwin') {
+    const macCandidates = [
+      '/Applications/IINA.app/Contents/MacOS/iina-cli',
+      '/Applications/IINA.app/Contents/MacOS/IINA',
+      '/opt/homebrew/bin/mpv',
+      '/opt/homebrew/bin/iina-cli',
+      '/usr/local/bin/mpv',
+      '/usr/local/bin/iina-cli',
+      '/Applications/mpv.app/Contents/MacOS/mpv',
+      '/Applications/VLC.app/Contents/MacOS/VLC',
+    ];
+    return macCandidates.find((candidate) => existsSync(candidate)) || null;
+  }
+
+  if (platform() === 'linux') {
+    const linuxCandidates = [
+      '/usr/bin/mpv',
+      '/usr/local/bin/mpv',
+      '/snap/bin/mpv',
+      '/usr/bin/vlc',
+    ];
+    return linuxCandidates.find((candidate) => existsSync(candidate)) || null;
+  }
+
   if (platform() !== 'win32') return null;
 
   const candidates = [
@@ -24,17 +48,20 @@ export const resolvePlayerCommand = async (player: string) => {
 };
 
 export const getStreamReferer = (stream?: StreamLink) => {
+  if (stream?.referer) return stream.referer;
   const streamUrl = String(stream?.url || '').trim();
   try {
     const parsed = new URL(streamUrl);
+    if (/(^|\.)anidb\.app$/i.test(parsed.hostname)) return 'https://anidb.app/';
     if (/(^|\.)googlevideo\.com$/i.test(parsed.hostname)) return 'https://www.youtube.com/';
     if (/(^|\.)mp4upload\.com$/i.test(parsed.hostname)) return 'https://www.mp4upload.com/';
     if (/^([^/]+\.)?kwik\./i.test(parsed.host)) return `${parsed.origin}/`;
+    if (stream?.provider === 'anidb') return 'https://anidb.app/';
     if (stream?.provider === 'allmanga') return 'https://allmanga.to/';
   } catch {
     // Fall back below
   }
-  return 'https://allmanga.to/';
+  return 'https://anidb.app/';
 };
 
 export const getStreamOrigin = (referer: string) => {
