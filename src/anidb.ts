@@ -38,14 +38,39 @@ export async function fetchAnidbText(url: string, referer = REFERER, timeoutSeco
   return res.text();
 }
 
-function cleanHtmlEntities(str: string): string {
-  return str
-    .replace(/&#039;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim();
+export function cleanHtmlEntities(str: string): string {
+  if (!str) return '';
+  let decoded = String(str);
+  // Multi-pass to handle nested/double-encoded entities (e.g. &amp;#039; -> &#039; -> ')
+  for (let pass = 0; pass < 3; pass += 1) {
+    const prev = decoded;
+    decoded = decoded
+      .replace(/&amp;/gi, '&')
+      .replace(/&#0*39;|&apos;|&#x27;/gi, "'")
+      .replace(/&quot;|&#0*34;|&#x22;/gi, '"')
+      .replace(/&lt;|&#0*60;|&#x3c;/gi, '<')
+      .replace(/&gt;|&#0*62;|&#x3e;/gi, '>')
+      .replace(/&nbsp;|&#0*160;/gi, ' ')
+      .replace(/&ndash;|&#8211;/gi, '–')
+      .replace(/&mdash;|&#8212;/gi, '—')
+      .replace(/&hellip;|&#8230;/gi, '…')
+      .replace(/&#(\d+);/g, (_, dec) => {
+        try {
+          return String.fromCodePoint(Number(dec));
+        } catch {
+          return _;
+        }
+      })
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+        try {
+          return String.fromCodePoint(parseInt(hex, 16));
+        } catch {
+          return _;
+        }
+      });
+    if (decoded === prev) break;
+  }
+  return decoded.trim();
 }
 
 export async function searchAniDB(query: string): Promise<AnimeSearchResult[]> {
@@ -79,7 +104,7 @@ export async function searchAniDB(query: string): Promise<AnimeSearchResult[]> {
       const id = m[2];
       const inner = m[3];
       const textWithoutImg = inner.replace(/<img[^>]*>/gi, '');
-      const titleMatch = inner.match(/alt=["']([^"']+)["']/i) || textWithoutImg.match(/<p[^>]*>([^<]+)<\/p>/i);
+      const titleMatch = textWithoutImg.match(/<p[^>]*>([^<]+)<\/p>/i) || inner.match(/alt=["']([^"']+)["']/i);
       const yearMatch = textWithoutImg.match(/\b(19\d{2}|20\d{2})\b/);
       const title = titleMatch ? titleMatch[1] : slug.replace(/-\d+$/, '').replace(/-/g, ' ');
       addResult(slug, id, title, yearMatch ? yearMatch[1] : undefined);
@@ -99,7 +124,7 @@ export async function searchAniDB(query: string): Promise<AnimeSearchResult[]> {
         const id = m[2];
         const inner = m[3];
         const textWithoutImg = inner.replace(/<img[^>]*>/gi, '');
-        const titleMatch = inner.match(/alt=["']([^"']+)["']/i) || textWithoutImg.match(/<p[^>]*>([^<]+)<\/p>/i) || inner.match(/title=["']([^"']+)["']/i);
+        const titleMatch = textWithoutImg.match(/<p[^>]*>([^<]+)<\/p>/i) || inner.match(/alt=["']([^"']+)["']/i) || inner.match(/title=["']([^"']+)["']/i);
         const yearMatch = textWithoutImg.match(/\b(19\d{2}|20\d{2})\b/);
         const title = titleMatch ? titleMatch[1] : slug.replace(/-\d+$/, '').replace(/-/g, ' ');
         addResult(slug, id, title, yearMatch ? yearMatch[1] : undefined);
